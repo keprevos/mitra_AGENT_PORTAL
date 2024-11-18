@@ -3,27 +3,38 @@ import { Check } from 'lucide-react';
 
 interface ReviewProps {
   data: {
-    personal: any;
-    activity: any;
-    shareholders: any[];
-    documents: any;
+    personal?: any;
+    activity?: any;
+    shareholders?: any[];
+    documents?: any;
   };
   onBack: () => void;
   onSubmit: () => void;
 }
 
 export function Review({ data, onBack, onSubmit }: ReviewProps) {
-  const { personal, activity, shareholders, documents } = data;
+  const { personal, activity, shareholders = [], documents } = data;
 
   const sections = [
     {
       title: 'Informations Personnelles',
       items: personal ? [
+        { label: 'Civilité', value: personal.title === 'madame' ? 'Madame' : 'Monsieur' },
         { label: 'Nom', value: personal.surname },
         { label: 'Prénom', value: personal.firstName },
         { label: 'Email', value: personal.email },
         { label: 'Téléphone', value: personal.mobile },
-        { label: 'Adresse', value: personal.address?.street },
+        { label: 'Adresse', value: [
+          personal.address?.street,
+          personal.address?.city,
+          personal.address?.postalCode,
+          personal.address?.country,
+        ].filter(Boolean).join(', ') },
+        { label: 'Date de naissance', value: personal.birthDate },
+        { label: 'Lieu de naissance', value: personal.birthPlace },
+        { label: 'Nationalité', value: personal.nationality },
+        { label: 'Résidence fiscale', value: personal.taxResidence },
+        { label: 'Ressortissant américain', value: personal.isUsCitizen ? 'Oui' : 'Non' },
       ] : [],
     },
     {
@@ -33,11 +44,22 @@ export function Review({ data, onBack, onSubmit }: ReviewProps) {
         { label: 'SIRET', value: activity.siret },
         { label: 'Raison sociale', value: activity.companyName },
         { label: 'Code APE', value: activity.industryCode },
+        { label: 'Enseigne', value: activity.brandName },
+        { label: 'Adresse', value: [
+          activity.address?.street,
+          activity.address?.city,
+          activity.address?.postalCode,
+          activity.address?.country,
+        ].filter(Boolean).join(', ') },
+        { label: "Description de l'activité", value: activity.activityDescription },
+        { label: 'Localisation clients/fournisseurs', value: activity.clientLocation },
+        { label: 'Types de clients/fournisseurs', value: activity.clientTypes },
+        { label: "Chiffre d'affaires", value: activity.lastTurnover ? `${activity.lastTurnover} €` : undefined },
       ] : [],
     },
     {
       title: 'Actionnaires',
-      items: shareholders ? shareholders.map((s, i) => ({
+      items: Array.isArray(shareholders) ? shareholders.map((s, i) => ({
         label: `Actionnaire ${i + 1}`,
         value: s.type === 'individual'
           ? `${s.firstName} ${s.lastName} (${s.ownershipPercentage}%)`
@@ -54,6 +76,8 @@ export function Review({ data, onBack, onSubmit }: ReviewProps) {
       ] : [],
     },
   ];
+
+  const [termsAccepted, setTermsAccepted] = React.useState(false);
 
   return (
     <div className="space-y-6">
@@ -84,6 +108,8 @@ export function Review({ data, onBack, onSubmit }: ReviewProps) {
                 id="terms"
                 name="terms"
                 type="checkbox"
+                checked={termsAccepted}
+                onChange={(e) => setTermsAccepted(e.target.checked)}
                 className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
               />
             </div>
@@ -118,7 +144,8 @@ export function Review({ data, onBack, onSubmit }: ReviewProps) {
         <button
           type="button"
           onClick={onSubmit}
-          className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          disabled={!termsAccepted}
+          className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Soumettre la demande
         </button>

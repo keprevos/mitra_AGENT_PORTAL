@@ -4,9 +4,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
 const personalInfoSchema = z.object({
-  title: z.enum(['madame', 'monsieur']),
-  surname: z.string().min(2, 'Le nom est requis'),
-  firstName: z.string().min(2, 'Le prénom est requis'),
+  title: z.enum(['madame', 'monsieur'], { required_error: "Civilité requise" }),
+  surname: z.string().min(2, 'Le nom doit contenir au moins 2 caractères'),
+  firstName: z.string().min(2, 'Le prénom doit contenir au moins 2 caractères'),
   maidenName: z.string().optional(),
   email: z.string().email('Email invalide'),
   mobile: z.string().min(10, 'Numéro de téléphone invalide'),
@@ -16,7 +16,7 @@ const personalInfoSchema = z.object({
     postalCode: z.string().min(5, 'Code postal requis'),
     country: z.string().min(2, 'Pays requis'),
   }),
-  birthDate: z.string(),
+  birthDate: z.string().min(1, 'Date de naissance requise'),
   birthPlace: z.string().min(2, 'Lieu de naissance requis'),
   birthCountry: z.string().min(2, 'Pays de naissance requis'),
   nationality: z.string().min(2, 'Nationalité requise'),
@@ -36,10 +36,13 @@ export function PersonalInfo({ data, onNext, isFirstStep }: PersonalInfoProps) {
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<PersonalInfoInputs>({
     resolver: zodResolver(personalInfoSchema),
-    defaultValues: data,
+    defaultValues: data?.personal || {
+      title: 'monsieur',
+      isUsCitizen: false,
+    },
   });
 
   return (
@@ -48,15 +51,15 @@ export function PersonalInfo({ data, onNext, isFirstStep }: PersonalInfoProps) {
         {/* Title */}
         <div className="sm:col-span-3">
           <label className="block text-sm font-medium text-gray-700">
-            Civilité
+            Civilité *
           </label>
-          <div className="mt-1 space-x-4">
+          <div className="mt-2 space-x-4">
             <label className="inline-flex items-center">
               <input
                 type="radio"
                 {...register('title')}
                 value="madame"
-                className="form-radio text-indigo-600"
+                className="form-radio h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
               />
               <span className="ml-2">Madame</span>
             </label>
@@ -65,7 +68,7 @@ export function PersonalInfo({ data, onNext, isFirstStep }: PersonalInfoProps) {
                 type="radio"
                 {...register('title')}
                 value="monsieur"
-                className="form-radio text-indigo-600"
+                className="form-radio h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
               />
               <span className="ml-2">Monsieur</span>
             </label>
@@ -78,7 +81,7 @@ export function PersonalInfo({ data, onNext, isFirstStep }: PersonalInfoProps) {
         {/* Name Fields */}
         <div className="sm:col-span-3">
           <label className="block text-sm font-medium text-gray-700">
-            Nom d'usage
+            Nom d'usage *
           </label>
           <input
             type="text"
@@ -92,7 +95,7 @@ export function PersonalInfo({ data, onNext, isFirstStep }: PersonalInfoProps) {
 
         <div className="sm:col-span-3">
           <label className="block text-sm font-medium text-gray-700">
-            Prénom
+            Prénom *
           </label>
           <input
             type="text"
@@ -104,10 +107,21 @@ export function PersonalInfo({ data, onNext, isFirstStep }: PersonalInfoProps) {
           )}
         </div>
 
-        {/* Contact Information */}
-        <div className="sm:col-span-4">
+        <div className="sm:col-span-3">
           <label className="block text-sm font-medium text-gray-700">
-            Email
+            Nom de naissance
+          </label>
+          <input
+            type="text"
+            {...register('maidenName')}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          />
+        </div>
+
+        {/* Contact Information */}
+        <div className="sm:col-span-3">
+          <label className="block text-sm font-medium text-gray-700">
+            Email *
           </label>
           <input
             type="email"
@@ -119,10 +133,24 @@ export function PersonalInfo({ data, onNext, isFirstStep }: PersonalInfoProps) {
           )}
         </div>
 
+        <div className="sm:col-span-3">
+          <label className="block text-sm font-medium text-gray-700">
+            Téléphone mobile *
+          </label>
+          <input
+            type="tel"
+            {...register('mobile')}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          />
+          {errors.mobile && (
+            <p className="mt-1 text-sm text-red-600">{errors.mobile.message}</p>
+          )}
+        </div>
+
         {/* Address */}
         <div className="sm:col-span-6">
           <label className="block text-sm font-medium text-gray-700">
-            Adresse
+            Adresse *
           </label>
           <input
             type="text"
@@ -171,6 +199,78 @@ export function PersonalInfo({ data, onNext, isFirstStep }: PersonalInfoProps) {
           )}
         </div>
 
+        {/* Birth Information */}
+        <div className="sm:col-span-2">
+          <label className="block text-sm font-medium text-gray-700">
+            Date de naissance *
+          </label>
+          <input
+            type="date"
+            {...register('birthDate')}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          />
+          {errors.birthDate && (
+            <p className="mt-1 text-sm text-red-600">{errors.birthDate.message}</p>
+          )}
+        </div>
+
+        <div className="sm:col-span-2">
+          <label className="block text-sm font-medium text-gray-700">
+            Lieu de naissance *
+          </label>
+          <input
+            type="text"
+            {...register('birthPlace')}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          />
+          {errors.birthPlace && (
+            <p className="mt-1 text-sm text-red-600">{errors.birthPlace.message}</p>
+          )}
+        </div>
+
+        <div className="sm:col-span-2">
+          <label className="block text-sm font-medium text-gray-700">
+            Pays de naissance *
+          </label>
+          <input
+            type="text"
+            {...register('birthCountry')}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          />
+          {errors.birthCountry && (
+            <p className="mt-1 text-sm text-red-600">{errors.birthCountry.message}</p>
+          )}
+        </div>
+
+        {/* Nationality and Tax Information */}
+        <div className="sm:col-span-3">
+          <label className="block text-sm font-medium text-gray-700">
+            Nationalité *
+          </label>
+          <input
+            type="text"
+            {...register('nationality')}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          />
+          {errors.nationality && (
+            <p className="mt-1 text-sm text-red-600">{errors.nationality.message}</p>
+          )}
+        </div>
+
+        <div className="sm:col-span-3">
+          <label className="block text-sm font-medium text-gray-700">
+            Pays de résidence fiscale *
+          </label>
+          <input
+            type="text"
+            {...register('taxResidence')}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          />
+          {errors.taxResidence && (
+            <p className="mt-1 text-sm text-red-600">{errors.taxResidence.message}</p>
+          )}
+        </div>
+
         {/* US Citizen */}
         <div className="sm:col-span-6">
           <div className="flex items-start">
@@ -185,6 +285,7 @@ export function PersonalInfo({ data, onNext, isFirstStep }: PersonalInfoProps) {
               <label className="font-medium text-gray-700">
                 Ressortissant américain
               </label>
+              <p className="text-gray-500">Cochez si vous êtes citoyen des États-Unis</p>
             </div>
           </div>
         </div>
@@ -193,10 +294,15 @@ export function PersonalInfo({ data, onNext, isFirstStep }: PersonalInfoProps) {
       <div className="flex justify-end space-x-3">
         <button
           type="submit"
-          className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          disabled={isSubmitting}
+          className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Continuer
+          {isSubmitting ? 'Chargement...' : 'Continuer'}
         </button>
+      </div>
+
+      <div className="text-sm text-gray-500">
+        * Champs obligatoires
       </div>
     </form>
   );

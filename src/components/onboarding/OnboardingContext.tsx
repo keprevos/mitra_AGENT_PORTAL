@@ -66,8 +66,13 @@ interface OnboardingContextType {
 
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
 
-export function OnboardingProvider({ children }: { children: ReactNode }) {
-  const [data, setData] = useState<OnboardingData>({});
+interface OnboardingProviderProps {
+  children: ReactNode;
+  initialData?: OnboardingData;
+}
+
+export function OnboardingProvider({ children, initialData }: OnboardingProviderProps) {
+  const [data, setData] = useState<OnboardingData>(initialData || {});
 
   const updatePersonalInfo = (info: OnboardingData['personal']) => {
     setData(prev => ({ ...prev, personal: info }));
