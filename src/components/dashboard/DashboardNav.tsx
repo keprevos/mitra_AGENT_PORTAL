@@ -1,6 +1,8 @@
 import React from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { LogOut } from 'lucide-react';
+import { useRole } from '../../contexts/RoleContext';
+import { LogOut, Settings, Bell } from 'lucide-react';
+import { PermissionGate } from '../common/PermissionGate';
 
 export function DashboardNav() {
   const { user, logout } = useAuth();
@@ -17,10 +19,31 @@ export function DashboardNav() {
             </div>
             <div className="ml-4 font-semibold text-gray-900">Agent Portal</div>
           </div>
-          <div className="flex items-center">
-            <span className="text-gray-700 mr-4">
+
+          <div className="flex items-center space-x-4">
+            <PermissionGate permissions={['system.view_audit_logs']}>
+              <button className="text-gray-500 hover:text-gray-700">
+                <Bell className="h-5 w-5" />
+              </button>
+            </PermissionGate>
+
+            <PermissionGate
+              permissions={[
+                'system.manage_banks',
+                'bank.manage_agents',
+                'bank.manage_staff'
+              ]}
+              requireAll={false}
+            >
+              <button className="text-gray-500 hover:text-gray-700">
+                <Settings className="h-5 w-5" />
+              </button>
+            </PermissionGate>
+
+            <span className="text-gray-700">
               Welcome, {user?.firstName} {user?.lastName}
             </span>
+
             <button
               onClick={logout}
               className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-700 hover:text-gray-900 focus:outline-none transition"
