@@ -1,0 +1,56 @@
+### Get Account Requests (Agent)
+GET http://localhost:3000/api/agents/AGENT_ID/accounts
+Authorization: Bearer YOUR_TOKEN
+
+### Create New Account Request
+POST http://localhost:3000/api/agents/AGENT_ID/accounts
+Authorization: Bearer YOUR_TOKEN
+Content-Type: application/json
+
+{
+  "bankId": "BANK_ID",
+  "personalDetails": {
+    "civilite": "Monsieur",
+    "nomDusage": "Smith",
+    "prenom": "John",
+    "email": "john.smith@example.com",
+    "telephoneMobile": "+33698765432",
+    "adressePostale": "789 Business Street",
+    "dateDeNaissance": "1982-03-15",
+    "lieuDeNaissance": "London",
+    "paysDeNaissance": "UK",
+    "nationalite": "British",
+    "paysDeResidenceFiscale": "France"
+  },
+  "businessDetails": {
+    "formeJuridique": "SAS",
+    "siret": "45678912301234",
+    "raisonSociale": "Global Trade SAS",
+    "codeAPE": "4619B",
+    "adresseEntreprise": "456 Trading Avenue",
+    "descriptionActivite": "International trade consulting",
+    "clientsOuFournisseurs": "Europe, Asia",
+    "dernierChiffreDaffaires": "2500000"
+  }
+}
+
+### Validate Account Request (Bank Staff)
+PATCH http://localhost:3000/api/banks/BANK_ID/accounts/REQUEST_ID/validate
+Authorization: Bearer YOUR_TOKEN
+Content-Type: application/json
+
+{
+  "comments": "All documents verified successfully"
+}
+
+### Flag Account Request with Errors (Bank Staff)
+PATCH http://localhost:3000/api/banks/BANK_ID/accounts/REQUEST_ID/errors
+Authorization: Bearer YOUR_TOKEN
+Content-Type: application/json
+
+{
+  "errorMessages": [
+    "Missing proof of address",
+    "Business registration document expired"
+  ]
+}
