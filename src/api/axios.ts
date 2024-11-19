@@ -1,11 +1,12 @@
 import axios from 'axios';
-import { API_BASE_URL } from './config';
+import { APP_CONFIG } from '../config/app.config';
 
 const axiosInstance = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: APP_CONFIG.API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
 
 // Request interceptor
@@ -34,20 +35,23 @@ axiosInstance.interceptors.response.use(
 
       try {
         const refreshToken = localStorage.getItem('refreshToken');
-        const response = await axios.post(`${API_BASE_URL}/auth/refresh-token`, {
+        if (!refreshToken) {
+          throw new Error('No refresh token available');
+        }
+
+        const response = await axios.post(`${APP_CONFIG.API_BASE_URL}/auth/refresh-token`, {
           refreshToken,
         });
 
         const { token } = response.data;
         localStorage.setItem('token', token);
-
         originalRequest.headers.Authorization = `Bearer ${token}`;
+        
         return axiosInstance(originalRequest);
-      } catch (error) {
-        // Refresh token failed, redirect to login
+      } catch (refreshError) {
         localStorage.clear();
         window.location.href = '/login';
-        return Promise.reject(error);
+        return Promise.reject(refreshError);
       }
     }
 

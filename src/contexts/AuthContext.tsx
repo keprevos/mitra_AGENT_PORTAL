@@ -1,67 +1,75 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '../types/auth';
+import { authService } from '../api/services/auth.service';
 
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
+  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const login = async (email: string, password: string) => {
-    // Mock login logic
-    if (email === 'admin@example.com' && password === 'password') {
-      // Super admin login
-      const user: User = {
-        id: '1',
-        email: 'admin@example.com',
-        firstName: 'Super',
-        lastName: 'Admin',
-        role: 'super_admin',
-        lastLogin: new Date(),
-      };
-      setUser(user);
-    } else if (email === 'bank@example.com' && password === 'password') {
-      // Bank admin login
-      const user: User = {
-        id: '2',
-        email: 'bank@example.com',
-        firstName: 'Bank',
-        lastName: 'Admin',
-        role: 'bank_admin',
-        bankId: 'bank1',
-        lastLogin: new Date(),
-      };
-      setUser(user);
-    } else if (email === 'demo@example.com' && password === 'password') {
-      // Agent login
-      const user: User = {
-        id: '3',
-        email: 'demo@example.com',
-        firstName: 'Demo',
-        lastName: 'Agent',
-        role: 'agent',
-        agencyId: 'agency1',
-        bankId: 'bank1',
-        lastLogin: new Date(),
-      };
-      setUser(user);
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      validateSession();
     } else {
-      throw new Error('Invalid credentials');
+      setIsLoading(false);
+    }
+  }, []);
+
+  const validateSession = async () => {
+    try {
+      const response = await authService.validateToken();
+      if (response.valid) {
+        setUser(response.user);
+      } else {
+        await logout();
+      }
+    } catch (error) {
+      console.error('Session validation failed:', error);
+      await logout();
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const logout = () => {
-    setUser(null);
+  const login = async (email: string, password: string) => {
+    try {
+      const response = await authService.login({ email, password });
+      setUser(response.user);
+    } catch (error) {
+      console.error('Login failed:', error);
+      throw error;
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await authService.logout();
+    } finally {
+      setUser(null);
+      localStorage.clear();
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider 
+      value={{ 
+        user, 
+        login, 
+        logout, 
+        isAuthenticated: !!user,
+        isLoading 
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -1,53 +1,30 @@
 import { BaseService } from './base.service';
-import { mockBankStatistics } from '../mock/mockData';
-
-export interface BankSettings {
-  name: string;
-  registrationNumber: string;
-  address: string;
-  securitySettings: {
-    twoFactorEnabled: boolean;
-    sessionTimeout: number;
-  };
-  notificationSettings: {
-    newRequests: boolean;
-    agentActivity: boolean;
-  };
-}
-
-export interface BankStatistics {
-  totalAgents: number;
-  activeRequests: number;
-  approvedToday: number;
-  pendingReview: number;
-  recentActivity: Array<{
-    id: number;
-    type: string;
-    content: string;
-    timestamp: string;
-  }>;
-}
+import { Bank, CreateBankDto, UpdateBankDto } from '../../types/bank';
+import { API_ENDPOINTS } from '../config';
 
 class BankService extends BaseService {
-  protected getMockData() {
-    return mockBankStatistics;
+  async getBanks(): Promise<Bank[]> {
+    return this.get<Bank[]>(API_ENDPOINTS.SUPER_ADMIN.BANKS);
   }
 
-  async getSettings(): Promise<BankSettings> {
-    return this.get<BankSettings>('/bank/settings');
+  async createBank(data: CreateBankDto): Promise<Bank> {
+    return this.post<Bank>(API_ENDPOINTS.SUPER_ADMIN.BANKS, data);
   }
 
-  async updateSettings(settings: Partial<BankSettings>): Promise<BankSettings> {
-    return this.put<BankSettings>('/bank/settings', settings);
+  async updateBank(id: string, data: UpdateBankDto): Promise<Bank> {
+    return this.put<Bank>(`${API_ENDPOINTS.SUPER_ADMIN.BANKS}/${id}`, data);
   }
 
-  async getStatistics(): Promise<BankStatistics> {
-    try {
-      return await this.get<BankStatistics>('/bank/statistics');
-    } catch (error) {
-      console.warn('Failed to fetch statistics from API, using mock data');
-      return mockBankStatistics;
-    }
+  async deleteBank(id: string): Promise<void> {
+    return this.delete(`${API_ENDPOINTS.SUPER_ADMIN.BANKS}/${id}`);
+  }
+
+  async getBankStaff(bankId: string): Promise<any[]> {
+    return this.get(`${API_ENDPOINTS.SUPER_ADMIN.BANKS}/${bankId}/staff`);
+  }
+
+  async createBankStaff(bankId: string, data: any): Promise<any> {
+    return this.post(`${API_ENDPOINTS.SUPER_ADMIN.BANKS}/${bankId}/staff`, data);
   }
 }
 

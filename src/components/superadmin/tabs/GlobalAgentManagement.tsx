@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, CheckCircle, XCircle, Building2 } from 'lucide-react';
+import { Search, Plus, Users, Building2 } from 'lucide-react';
 import { Agent } from '../../../types/auth';
-import { agentService } from '../../../api/services/agent.service';
+import { adminService } from '../../../api/services/admin.service';
+import { CreateStaffForm } from '../forms/CreateStaffForm';
+import toast from 'react-hot-toast';
 
 export function GlobalAgentManagement() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showAddStaffModal, setShowAddStaffModal] = useState(false);
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [bankFilter, setBankFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchAgents();
@@ -18,7 +23,7 @@ export function GlobalAgentManagement() {
   const fetchAgents = async () => {
     try {
       setIsLoading(true);
-      const data = await agentService.getAgents();
+      const data = await adminService.getAgents();
       setAgents(data);
     } catch (err) {
       setError('Failed to fetch agents');
@@ -26,6 +31,26 @@ export function GlobalAgentManagement() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleCreateStaff = async (data: any) => {
+    try {
+      setIsSubmitting(true);
+      await adminService.createAgentStaff(data);
+      toast.success('Staff member created successfully');
+      setShowAddStaffModal(false);
+      setSelectedAgentId(null);
+    } catch (err) {
+      toast.error('Failed to create staff member');
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleAddStaff = (agentId: string) => {
+    setSelectedAgentId(agentId);
+    setShowAddStaffModal(true);
   };
 
   const filteredAgents = agents.filter(agent => {
@@ -104,11 +129,8 @@ export function GlobalAgentManagement() {
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Requests
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Last Login
+                <th scope="col" className="relative px-6 py-3">
+                  <span className="sr-only">Actions</span>
                 </th>
               </tr>
             </thead>
@@ -137,37 +159,38 @@ export function GlobalAgentManagement() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`
                       inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                      ${agent.status === 'active'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-red-100 text-red-800'
-                      }
+                      ${agent.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}
                     `}>
-                      {agent.status === 'active' ? (
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                      ) : (
-                        <XCircle className="h-4 w-4 mr-1" />
-                      )}
                       {agent.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <div className="flex items-center space-x-2">
-                      <span>{agent.totalRequests} total</span>
-                      {agent.pendingRequests > 0 && (
-                        <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full text-xs">
-                          {agent.pendingRequests} pending
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {agent.lastLogin ? new Date(agent.lastLogin).toLocaleDateString() : 'Never'}
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button
+                      onClick={() => handleAddStaff(agent.id)}
+                      className="text-indigo-600 hover:text-indigo-900"
+                      title="Add Staff"
+                    >
+                      <Users className="h-5 w-5" />
+                    </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+      )}
+
+      {showAddStaffModal && selectedAgentId && (
+        <CreateStaffForm
+          type="agent"
+          parentId={selectedAgentId}
+          onSubmit={handleCreateStaff}
+          onCancel={() => {
+            setShowAddStaffModal(false);
+            setSelectedAgentId(null);
+          }}
+          isSubmitting={isSubmitting}
+        />
       )}
     </div>
   );

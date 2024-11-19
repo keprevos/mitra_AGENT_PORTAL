@@ -10,14 +10,13 @@ export function Login() {
   const { login, isAuthenticated } = useAuth();
 
   const handleLogin = async (email: string, password: string) => {
-    setIsLoading(true);
-    setError(undefined);
-    
     try {
+      setIsLoading(true);
+      setError(undefined);
       await login(email, password);
       navigate('/dashboard');
     } catch (err) {
-      setError('Invalid email or password');
+      setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
