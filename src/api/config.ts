@@ -11,18 +11,18 @@ export const API_ENDPOINTS = {
   SUPER_ADMIN: {
     BANKS: '/admin/banks',
     BANK_STAFF: '/admin/bank-staff',
-    AGENTS: '/admin/agents',
-    AGENT_STAFF: '/admin/agent-staff',
+    AGENCIES: '/admin/agencies',
+    AGENCY_STAFF: '/admin/agency-staff',
     STATISTICS: '/admin/statistics',
   },
   BANK: {
     STAFF: '/bank/staff',
-    AGENTS: '/bank/agents',
+    AGENCIES: '/bank/agencies',
     SETTINGS: '/bank/settings',
   },
-  AGENT: {
-    STAFF: '/agent/staff',
-    CUSTOMERS: '/agent/customers',
-    REQUESTS: '/agent/requests',
+  AGENCY: {
+    STAFF: '/agency/staff',
+    CUSTOMERS: '/agency/customers',
+    REQUESTS: '/agency/requests',
   },
 };

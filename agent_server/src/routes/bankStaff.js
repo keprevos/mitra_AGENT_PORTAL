@@ -3,44 +3,39 @@ const router = express.Router();
 const { auth, checkRole } = require('../middleware/auth');
 const bankStaffController = require('../controllers/bankStaffController');
 
-// Add staff to bank
-router.post(
-  '/:bankId/staff',
-  auth,
-  checkRole(['super_admin', 'bank_admin']),
-  bankStaffController.addStaff
+// Get all staff for a bank
+router.get('/banks/:bankId/staff', 
+  auth, 
+  checkRole(['super_admin', 'bank_admin']), 
+  bankStaffController.getBankStaff
 );
 
-// Get all staff for bank
-router.get(
-  '/:bankId/staff',
-  auth,
-  checkRole(['super_admin', 'bank_admin']),
-  bankStaffController.getStaff
+// Create new staff member
+router.post('/banks/:bankId/staff', 
+  auth, 
+  checkRole(['super_admin', 'bank_admin']), 
+  bankStaffController.createBankStaff
 );
 
-// Get specific staff member
-router.get(
-  '/:bankId/staff/:staffId',
-  auth,
-  checkRole(['super_admin', 'bank_admin']),
-  bankStaffController.getStaffMember
+// Update staff member
+router.put('/banks/:bankId/staff/:staffId', 
+  auth, 
+  checkRole(['super_admin', 'bank_admin']), 
+  bankStaffController.updateBankStaff
 );
 
-// Update staff role/permissions
-router.put(
-  '/:bankId/staff/:staffId',
-  auth,
-  checkRole(['super_admin', 'bank_admin']),
-  bankStaffController.updateStaff
+// Delete/deactivate staff member
+router.delete('/banks/:bankId/staff/:staffId', 
+  auth, 
+  checkRole(['super_admin', 'bank_admin']), 
+  bankStaffController.deleteBankStaff
 );
 
-// Deactivate staff member
-router.delete(
-  '/:bankId/staff/:staffId',
-  auth,
-  checkRole(['super_admin', 'bank_admin']),
-  bankStaffController.deactivateStaff
+// Update staff roles
+router.put('/banks/:bankId/staff/:staffId/roles', 
+  auth, 
+  checkRole(['super_admin', 'bank_admin']), 
+  bankStaffController.updateStaffRoles
 );
 
 module.exports = router;

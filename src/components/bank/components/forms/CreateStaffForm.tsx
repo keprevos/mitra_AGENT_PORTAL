@@ -10,7 +10,6 @@ const staffSchema = z.object({
   lastName: z.string().min(2, 'Last name is required'),
   role: z.string().min(1, 'Role is required'),
   department: z.string().optional(),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
 });
 
 type StaffFormInputs = z.infer<typeof staffSchema>;
@@ -77,18 +76,6 @@ export function CreateStaffForm({ onSubmit, onCancel, isSubmitting }: CreateStaf
                 <p className="mt-1 text-sm text-red-600">{errors.lastName.message}</p>
               )}
             </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Password</label>
-            <input
-              type="password"
-              {...register('password')}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-            />
-            {errors.password && (
-              <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
-            )}
           </div>
 
           <div>

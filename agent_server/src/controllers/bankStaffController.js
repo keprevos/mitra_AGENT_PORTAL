@@ -1,106 +1,106 @@
-const BankStaff = require('../models/BankStaff');
+const { v4: uuidv4 } = require('uuid');
+const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Bank = require('../models/Bank');
-const { validatePermissions } = require('../middleware/validatePermission');
+const Role = require('../models/Role');
 
-exports.addStaff = async (req, res) => {
+exports.getBankStaff = async (req, res) => {
   try {
     const { bankId } = req.params;
-    const { email, firstName, lastName, role, permissions } = req.body;
 
-    // Create user first
-    const user = await User.create({
+    const staff = await User.findAll({
+      where: { bankId },
+      include: [{
+        model: Role,
+        attributes: ['name', 'permissions']
+      }],
+      attributes: [
+        'id', 
+        'email', 
+        'firstName', 
+        'lastName', 
+        'status', 
+        'lastLogin',
+        'department'
+      ]
+    });
+
+    const formattedStaff = staff.map(user => ({
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      status: user.status,
+      lastLogin: user.lastLogin,
+      department: user.department,
+      role: user.Role.name,
+      permissions: user.Role.permissions
+    }));
+
+    res.json(formattedStaff);
+  } catch (error) {
+    console.error('Error fetching bank staff:', error);
+    res.status(500).json({ message: 'Failed to fetch bank staff' });
+  }
+};
+
+exports.createBankStaff = async (req, res) => {
+  try {
+    const { bankId } = req.params;
+    const { email, firstName, lastName, role, department } = req.body;
+
+    // Check if bank exists
+    const bank = await Bank.findByPk(bankId);
+    if (!bank) {
+      return res.status(404).json({ message: 'Bank not found' });
+    }
+
+    // Check if email is already in use
+    const existingUser = await User.findOne({ where: { email } });
+    if (existingUser) {
+      return res.status(400).json({ message: 'Email already in use' });
+    }
+
+    // Find role
+    const staffRole = await Role.findOne({ where: { name: role } });
+    if (!staffRole) {
+      return res.status(404).json({ message: 'Role not found' });
+    }
+
+    // Generate random password
+    const password = Math.random().toString(36).slice(-8);
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const staff = await User.create({
       email,
       firstName,
       lastName,
-      password: Math.random().toString(36).slice(-8), // Generate random password
-      roleId: role
-    });
-
-    // Create bank staff association
-    const bankStaff = await BankStaff.create({
+      password: hashedPassword,
+      roleId: staffRole.id,
       bankId,
-      userId: user.id,
-      role,
-      permissions
+      department,
+      status: 'active'
     });
 
-    // Send email with credentials (implement email service)
+    // TODO: Send email with credentials
 
     res.status(201).json({
-      message: 'Staff member added successfully',
-      data: bankStaff
+      ...staff.toJSON(),
+      password: undefined
     });
   } catch (error) {
-    console.error('Error adding staff:', error);
-    res.status(500).json({ message: 'Failed to add staff member' });
+    console.error('Error creating bank staff:', error);
+    res.status(500).json({ message: 'Failed to create bank staff' });
   }
 };
 
-exports.getStaff = async (req, res) => {
-  try {
-    const { bankId } = req.params;
-    const { page = 1, limit = 10, search } = req.query;
-    const offset = (page - 1) * limit;
-
-    const whereClause = { bankId };
-    if (search) {
-      whereClause['$User.firstName$'] = { [Op.like]: `%${search}%` };
-    }
-
-    const staff = await BankStaff.findAndCountAll({
-      where: whereClause,
-      include: [{
-        model: User,
-        attributes: ['id', 'email', 'firstName', 'lastName']
-      }],
-      limit,
-      offset,
-      order: [['createdAt', 'DESC']]
-    });
-
-    res.json({
-      data: staff.rows,
-      total: staff.count,
-      currentPage: page,
-      totalPages: Math.ceil(staff.count / limit)
-    });
-  } catch (error) {
-    console.error('Error fetching staff:', error);
-    res.status(500).json({ message: 'Failed to fetch staff' });
-  }
-};
-
-exports.getStaffMember = async (req, res) => {
+exports.updateBankStaff = async (req, res) => {
   try {
     const { bankId, staffId } = req.params;
+    const { firstName, lastName, email, department, status } = req.body;
 
-    const staff = await BankStaff.findOne({
-      where: { bankId, id: staffId },
-      include: [{
-        model: User,
-        attributes: ['id', 'email', 'firstName', 'lastName']
-      }]
-    });
-
-    if (!staff) {
-      return res.status(404).json({ message: 'Staff member not found' });
-    }
-
-    res.json({ data: staff });
-  } catch (error) {
-    console.error('Error fetching staff member:', error);
-    res.status(500).json({ message: 'Failed to fetch staff member' });
-  }
-};
-
-exports.updateStaff = async (req, res) => {
-  try {
-    const { bankId, staffId } = req.params;
-    const { role, permissions } = req.body;
-
-    const staff = await BankStaff.findOne({
-      where: { bankId, id: staffId }
+    const staff = await User.findOne({
+      where: { id: staffId, bankId }
     });
 
     if (!staff) {
@@ -108,26 +108,25 @@ exports.updateStaff = async (req, res) => {
     }
 
     await staff.update({
-      role,
-      permissions
+      firstName,
+      lastName,
+      email,
+      department,
+      status
     });
 
-    res.json({
-      message: 'Staff member updated successfully',
-      data: staff
-    });
+    res.json(staff);
   } catch (error) {
-    console.error('Error updating staff:', error);
-    res.status(500).json({ message: 'Failed to update staff member' });
+    console.error('Error updating bank staff:', error);
+    res.status(500).json({ message: 'Failed to update bank staff' });
   }
 };
 
-exports.deactivateStaff = async (req, res) => {
+exports.deleteBankStaff = async (req, res) => {
   try {
     const { bankId, staffId } = req.params;
-
-    const staff = await BankStaff.findOne({
-      where: { bankId, id: staffId }
+    const staff = await User.findOne({
+      where: { id: staffId, bankId }
     });
 
     if (!staff) {
@@ -135,12 +134,41 @@ exports.deactivateStaff = async (req, res) => {
     }
 
     await staff.update({ status: 'inactive' });
+    res.json({ message: 'Staff member deactivated successfully' });
+  } catch (error) {
+    console.error('Error deleting bank staff:', error);
+    res.status(500).json({ message: 'Failed to delete bank staff' });
+  }
+};
+
+exports.updateStaffRoles = async (req, res) => {
+  try {
+    const { bankId, staffId } = req.params;
+    const { roles } = req.body;
+
+    const staff = await User.findOne({
+      where: { id: staffId, bankId },
+      include: [{ model: Role }]
+    });
+
+    if (!staff) {
+      return res.status(404).json({ message: 'Staff member not found' });
+    }
+
+    // Update roles
+    const role = await Role.findOne({ where: { name: roles[0] } }); // Assuming single role for now
+    if (!role) {
+      return res.status(404).json({ message: 'Role not found' });
+    }
+
+    await staff.update({ roleId: role.id });
 
     res.json({
-      message: 'Staff member deactivated successfully'
+      message: 'Staff roles updated successfully',
+      roles: roles
     });
   } catch (error) {
-    console.error('Error deactivating staff:', error);
-    res.status(500).json({ message: 'Failed to deactivate staff member' });
+    console.error('Error updating staff roles:', error);
+    res.status(500).json({ message: 'Failed to update staff roles' });
   }
 };

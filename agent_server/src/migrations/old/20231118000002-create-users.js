@@ -43,6 +43,14 @@ module.exports = {
         type: Sequelize.ENUM('active', 'inactive'),
         defaultValue: 'active'
       },
+      lastLogin: {
+        type: Sequelize.DATE,
+        allowNull: true
+      },
+      department: {
+        type: Sequelize.STRING,
+        allowNull: true
+      },
       createdAt: {
         type: Sequelize.DATE,
         allowNull: false

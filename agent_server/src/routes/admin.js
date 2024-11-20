@@ -1,12 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const { auth, checkRole } = require('../middleware/auth');
-const User = require('../models/User');
+const bankStaffController = require('../controllers/bankStaffController');
+const agencyController = require('../controllers/agencyController');
 const Bank = require('../models/Bank');
-const Agent = require('../models/Agent');
+const Agency = require('../models/Agency');
 const Role = require('../models/Role');
 
-// Create bank
+// Bank Management
 router.post('/banks', auth, checkRole(['super_admin']), async (req, res) => {
   try {
     const bank = await Bank.create(req.body);
@@ -16,45 +17,6 @@ router.post('/banks', auth, checkRole(['super_admin']), async (req, res) => {
   }
 });
 
-// Create agent
-router.post('/agents', auth, checkRole(['super_admin']), async (req, res) => {
-  try {
-    const agent = await Agent.create(req.body);
-    res.status(201).json(agent);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-});
-
-// Create bank staff
-router.post('/bank-staff', auth, checkRole(['super_admin', 'bank_admin']), async (req, res) => {
-  try {
-    const bankStaffRole = await Role.findOne({ where: { name: 'bank_staff' } });
-    const user = await User.create({
-      ...req.body,
-      roleId: bankStaffRole.id
-    });
-    res.status(201).json(user);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-});
-
-// Create agent staff
-router.post('/agent-staff', auth, checkRole(['super_admin', 'agent_admin']), async (req, res) => {
-  try {
-    const agentStaffRole = await Role.findOne({ where: { name: 'agent_staff' } });
-    const user = await User.create({
-      ...req.body,
-      roleId: agentStaffRole.id
-    });
-    res.status(201).json(user);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-});
-
-// Get all banks
 router.get('/banks', auth, checkRole(['super_admin']), async (req, res) => {
   try {
     const banks = await Bank.findAll();
@@ -64,14 +26,21 @@ router.get('/banks', auth, checkRole(['super_admin']), async (req, res) => {
   }
 });
 
-// Get all agents
-router.get('/agents', auth, checkRole(['super_admin']), async (req, res) => {
-  try {
-    const agents = await Agent.findAll();
-    res.json(agents);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+// Bank Staff Management
+router.get('/banks/:bankId/staff', auth, checkRole(['super_admin', 'bank_admin']), bankStaffController.getBankStaff);
+router.post('/banks/:bankId/staff', auth, checkRole(['super_admin', 'bank_admin']), bankStaffController.createBankStaff);
+router.put('/banks/:bankId/staff/:staffId', auth, checkRole(['super_admin', 'bank_admin']), bankStaffController.updateBankStaff);
+router.delete('/banks/:bankId/staff/:staffId', auth, checkRole(['super_admin', 'bank_admin']), bankStaffController.deleteBankStaff);
+router.put('/banks/:bankId/staff/:staffId/roles', auth, checkRole(['super_admin', 'bank_admin']), bankStaffController.updateStaffRoles);
+
+// Agency Management
+router.post('/banks/:bankId/agencies', auth, checkRole(['super_admin']), agencyController.createAgency);
+router.get('/banks/:bankId/agencies', auth, checkRole(['super_admin']), agencyController.getAgencies);
+router.put('/banks/:bankId/agencies/:agencyId', auth, checkRole(['super_admin']), agencyController.updateAgency);
+router.delete('/banks/:bankId/agencies/:agencyId', auth, checkRole(['super_admin']), agencyController.deleteAgency);
+
+// Agency Staff Management
+router.post('/banks/:bankId/agencies/:agencyId/staff', auth, checkRole(['super_admin', 'agency_admin']), agencyController.createAgencyStaff);
+router.get('/banks/:bankId/agencies/:agencyId/staff', auth, checkRole(['super_admin', 'agency_admin']), agencyController.getAgencyStaff);
 
 module.exports = router;

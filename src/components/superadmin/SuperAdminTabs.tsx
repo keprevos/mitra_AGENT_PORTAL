@@ -15,7 +15,7 @@ interface SuperAdminTabsProps {
 const tabs: Tab[] = [
   { id: 'overview', name: 'Overview', icon: <LayoutDashboard className="h-5 w-5" /> },
   { id: 'banks', name: 'Bank Management', icon: <Building2 className="h-5 w-5" /> },
-  { id: 'agents', name: 'Global Agent Management', icon: <Users className="h-5 w-5" /> },
+  { id: 'agencies', name: 'Agency Management', icon: <Users className="h-5 w-5" /> },
   { id: 'requests', name: 'Global Request Review', icon: <FileText className="h-5 w-5" /> },
   { id: 'settings', name: 'Settings', icon: <Settings className="h-5 w-5" /> },
 ];

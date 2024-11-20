@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
-const Agent = sequelize.define('Agent', {
+const Agency = sequelize.define('Agency', {
   id: {
     type: DataTypes.UUID,
     defaultValue: DataTypes.UUIDV4,
@@ -56,9 +56,9 @@ const Agent = sequelize.define('Agent', {
 });
 
 // Define associations
-Agent.associate = (models) => {
-  Agent.belongsTo(models.Bank, { foreignKey: 'bankId' });
-  Agent.hasMany(models.User, { foreignKey: 'agentId' });
+Agency.associate = (models) => {
+  Agency.belongsTo(models.Bank, { foreignKey: 'bankId' });
+  Agency.hasMany(models.User, { foreignKey: 'agencyId' });
 };
 
-module.exports = Agent;
+module.exports = Agency;

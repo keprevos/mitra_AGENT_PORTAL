@@ -30,19 +30,39 @@ const User = sequelize.define('User', {
   },
   roleId: {
     type: DataTypes.UUID,
-    allowNull: false
+    allowNull: false,
+    references: {
+      model: 'Roles',
+      key: 'id'
+    }
   },
   bankId: {
     type: DataTypes.UUID,
-    allowNull: true
+    allowNull: true,
+    references: {
+      model: 'Banks',
+      key: 'id'
+    }
   },
-  agentId: {
+  agencyId: {
     type: DataTypes.UUID,
-    allowNull: true
+    allowNull: true,
+    references: {
+      model: 'Agencies',
+      key: 'id'
+    }
   },
   status: {
     type: DataTypes.ENUM('active', 'inactive'),
     defaultValue: 'active'
+  },
+  lastLogin: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  department: {
+    type: DataTypes.STRING,
+    allowNull: true
   }
 }, {
   hooks: {
@@ -53,5 +73,12 @@ const User = sequelize.define('User', {
     }
   }
 });
+
+// Define associations
+User.associate = (models) => {
+  User.belongsTo(models.Role, { foreignKey: 'roleId' });
+  User.belongsTo(models.Bank, { foreignKey: 'bankId' });
+  User.belongsTo(models.Agency, { foreignKey: 'agencyId' });
+};
 
 module.exports = User;

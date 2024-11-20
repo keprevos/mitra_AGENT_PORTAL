@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit2, Building2, Users, Shield } from 'lucide-react';
+import { Search, Plus } from 'lucide-react';
 import { Bank } from '../../../types/bank';
 import { Staff } from '../../../types/staff';
 import { adminService } from '../../../api/services/admin.service';
+import { BankList } from '../components/BankList';
+import { BankStaffList } from '../components/BankStaffList';
 import { CreateBankForm } from '../forms/CreateBankForm';
-import { StaffList } from '../components/StaffList';
+import { CreateStaffForm } from '../forms/CreateStaffForm';
 import { RoleAssignment } from '../components/RoleAssignment';
-import { StaffRequestForm } from '../forms/StaffRequestForm';
 import { useRole } from '../../../contexts/RoleContext';
 import toast from 'react-hot-toast';
 
@@ -14,18 +15,19 @@ export function BankManagement() {
   const [banks, setBanks] = useState<Bank[]>([]);
   const [selectedBank, setSelectedBank] = useState<Bank | null>(null);
   const [staffList, setStaffList] = useState<Staff[]>([]);
+  const [staffCounts, setStaffCounts] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showStaffRequestModal, setShowStaffRequestModal] = useState(false);
+  const [showAddBankModal, setShowAddBankModal] = useState(false);
+  const [showAddStaffModal, setShowAddStaffModal] = useState(false);
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { hasPermission } = useRole();
-  const canCreateStaff = hasPermission('bank.manage_staff');
-  const canAssignRoles = hasPermission('bank.manage_roles');
+  const canManageStaff = hasPermission('system.manage_banks');
+  const canAssignRoles = hasPermission('system.manage_roles');
 
   useEffect(() => {
     fetchBanks();
@@ -42,6 +44,15 @@ export function BankManagement() {
       setIsLoading(true);
       const data = await adminService.getBanks();
       setBanks(data);
+      // Fetch staff counts for each bank
+      const counts: Record<string, number> = {};
+      await Promise.all(
+        data.map(async (bank) => {
+          const staff = await adminService.getBankStaff(bank.id);
+          counts[bank.id] = staff.length;
+        })
+      );
+      setStaffCounts(counts);
     } catch (err) {
       setError('Failed to fetch banks');
       console.error(err);
@@ -54,6 +65,10 @@ export function BankManagement() {
     try {
       const staff = await adminService.getBankStaff(bankId);
       setStaffList(staff);
+      setStaffCounts(prev => ({
+        ...prev,
+        [bankId]: staff.length
+      }));
     } catch (err) {
       console.error('Failed to fetch bank staff:', err);
       toast.error('Failed to load bank staff');
@@ -65,7 +80,7 @@ export function BankManagement() {
       setIsSubmitting(true);
       await adminService.createBank(data);
       toast.success('Bank created successfully');
-      setShowAddModal(false);
+      setShowAddBankModal(false);
       fetchBanks();
     } catch (err) {
       toast.error('Failed to create bank');
@@ -75,18 +90,49 @@ export function BankManagement() {
     }
   };
 
-  const handleStaffRequest = async (data: any) => {
+  const handleCreateStaff = async (data: any) => {
+    if (!selectedBank) return;
+
     try {
       setIsSubmitting(true);
-      await adminService.createStaffRequest({
-        ...data,
-        bankId: selectedBank?.id,
-      });
-      toast.success('Staff request submitted successfully');
-      setShowStaffRequestModal(false);
-      fetchBankStaff(selectedBank?.id || '');
+      await adminService.createBankStaff(selectedBank.id, data);
+      toast.success('Staff member created successfully');
+      setShowAddStaffModal(false);
+      fetchBankStaff(selectedBank.id);
     } catch (err) {
-      toast.error('Failed to submit staff request');
+      toast.error('Failed to create staff member');
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEditStaff = async (staff: Staff) => {
+    if (!selectedBank) return;
+
+    try {
+      setIsSubmitting(true);
+      await adminService.updateBankStaff(selectedBank.id, staff.id, staff);
+      toast.success('Staff member updated successfully');
+      fetchBankStaff(selectedBank.id);
+    } catch (err) {
+      toast.error('Failed to update staff member');
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteStaff = async (staff: Staff) => {
+    if (!selectedBank) return;
+
+    try {
+      setIsSubmitting(true);
+      await adminService.deleteBankStaff(selectedBank.id, staff.id);
+      toast.success('Staff member deleted successfully');
+      fetchBankStaff(selectedBank.id);
+    } catch (err) {
+      toast.error('Failed to delete staff member');
       console.error(err);
     } finally {
       setIsSubmitting(false);
@@ -94,27 +140,22 @@ export function BankManagement() {
   };
 
   const handleRoleAssignment = async (staffId: string, roles: string[]) => {
+    if (!selectedBank) return;
+
     try {
-      await adminService.updateStaffRoles(staffId, roles);
+      await adminService.updateStaffRoles(selectedBank.id, staffId, roles);
       toast.success('Roles updated successfully');
       setShowRoleModal(false);
-      if (selectedBank) {
-        fetchBankStaff(selectedBank.id);
-      }
+      fetchBankStaff(selectedBank.id);
     } catch (err) {
       toast.error('Failed to update roles');
       console.error(err);
     }
   };
 
-  const handleBankSelect = (bank: Bank) => {
-    setSelectedBank(bank);
-    setStaffList([]);
-  };
-
   const filteredBanks = banks.filter(bank => 
     bank.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    bank.code.toLowerCase().includes(searchTerm.toLowerCase())
+    bank.registrationNumber.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (isLoading) {
@@ -142,7 +183,7 @@ export function BankManagement() {
           />
         </div>
         <button
-          onClick={() => setShowAddModal(true)}
+          onClick={() => setShowAddBankModal(true)}
           className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
         >
           <Plus className="h-5 w-5 mr-2" />
@@ -151,108 +192,46 @@ export function BankManagement() {
       </div>
 
       {/* Bank List */}
-      <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Bank Details
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Staff Count
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th scope="col" className="relative px-6 py-3">
-                <span className="sr-only">Actions</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredBanks.map((bank) => (
-              <tr 
-                key={bank.id} 
-                className={`hover:bg-gray-50 cursor-pointer ${selectedBank?.id === bank.id ? 'bg-indigo-50' : ''}`}
-                onClick={() => handleBankSelect(bank)}
-              >
-                <td className="px-6 py-4">
-                  <div className="flex items-center">
-                    <Building2 className="h-5 w-5 text-gray-400 mr-2" />
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{bank.name}</div>
-                      <div className="text-sm text-gray-500">{bank.code}</div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {staffList.length} Staff Members
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    bank.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                  }`}>
-                    {bank.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <div className="flex items-center justify-end space-x-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowStaffRequestModal(true);
-                      }}
-                      className="text-indigo-600 hover:text-indigo-900"
-                      title="Request Staff"
-                    >
-                      <Users className="h-5 w-5" />
-                    </button>
-                    {canAssignRoles && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowRoleModal(true);
-                        }}
-                        className="text-indigo-600 hover:text-indigo-900"
-                        title="Manage Roles"
-                      >
-                        <Shield className="h-5 w-5" />
-                      </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <BankList
+        banks={filteredBanks}
+        selectedBank={selectedBank}
+        onBankSelect={setSelectedBank}
+        onAddStaff={(bank) => {
+          setSelectedBank(bank);
+          setShowAddStaffModal(true);
+        }}
+        staffCounts={staffCounts}
+      />
 
       {/* Staff List */}
       {selectedBank && (
-        <StaffList
+        <BankStaffList
           staffList={staffList}
           onAssignRole={(staff) => {
             setSelectedStaff(staff);
             setShowRoleModal(true);
           }}
+          onAddStaff={() => setShowAddStaffModal(true)}
+          onEditStaff={handleEditStaff}
+          onDeleteStaff={handleDeleteStaff}
           canAssignRoles={canAssignRoles}
+          bankName={selectedBank.name}
         />
       )}
 
       {/* Modals */}
-      {showAddModal && (
+      {showAddBankModal && (
         <CreateBankForm
           onSubmit={handleCreateBank}
-          onCancel={() => setShowAddModal(false)}
+          onCancel={() => setShowAddBankModal(false)}
           isSubmitting={isSubmitting}
         />
       )}
 
-      {showStaffRequestModal && selectedBank && (
-        <StaffRequestForm
-          bankId={selectedBank.id}
-          onSubmit={handleStaffRequest}
-          onCancel={() => setShowStaffRequestModal(false)}
+      {showAddStaffModal && selectedBank && (
+        <CreateStaffForm
+          onSubmit={handleCreateStaff}
+          onCancel={() => setShowAddStaffModal(false)}
           isSubmitting={isSubmitting}
         />
       )}

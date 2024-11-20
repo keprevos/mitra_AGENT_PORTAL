@@ -9,6 +9,7 @@ require('./models/index');
 const sequelize = require('./config/database');
 const agentRoutes = require('./routes/agent');
 const bankRoutes = require('./routes/bank');
+const bankStaffRoutes = require('./routes/bankStaff');
 const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin');
 
@@ -31,7 +32,7 @@ app.use(limiter);
 
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/admin', adminRoutes);
+app.use('/api/admin', adminRoutes); // All admin routes including bank staff management
 app.use('/api/agents', agentRoutes);
 app.use('/api/banks', bankRoutes);
 
