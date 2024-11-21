@@ -43,22 +43,6 @@ const Agency = sequelize.define('Agency', {
     type: DataTypes.ENUM('active', 'inactive'),
     defaultValue: 'active'
   }
-}, {
-  indexes: [
-    {
-      fields: ['bankId']
-    },
-    {
-      fields: ['code'],
-      unique: true
-    }
-  ]
 });
-
-// Define associations
-Agency.associate = (models) => {
-  Agency.belongsTo(models.Bank, { foreignKey: 'bankId' });
-  Agency.hasMany(models.User, { foreignKey: 'agencyId' });
-};
 
 module.exports = Agency;

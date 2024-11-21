@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Building2, Users, FileText, Settings } from 'lucide-react';
+import { LayoutDashboard, Building2, Users, FileText, Settings, Shield } from 'lucide-react';
 
 interface Tab {
   id: string;
@@ -17,6 +17,7 @@ const tabs: Tab[] = [
   { id: 'banks', name: 'Bank Management', icon: <Building2 className="h-5 w-5" /> },
   { id: 'agencies', name: 'Agency Management', icon: <Users className="h-5 w-5" /> },
   { id: 'requests', name: 'Global Request Review', icon: <FileText className="h-5 w-5" /> },
+  { id: 'roles', name: 'Role Management', icon: <Shield className="h-5 w-5" /> },
   { id: 'settings', name: 'Settings', icon: <Settings className="h-5 w-5" /> },
 ];
 

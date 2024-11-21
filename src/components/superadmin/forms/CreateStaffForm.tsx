@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { X } from 'lucide-react';
+import { roleService, Role } from '../../../api/services/role.service';
 
 const staffSchema = z.object({
   email: z.string().email('Valid email is required'),
@@ -10,7 +11,6 @@ const staffSchema = z.object({
   lastName: z.string().min(2, 'Last name is required'),
   role: z.string().min(1, 'Role is required'),
   department: z.string().optional(),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
 });
 
 type StaffFormInputs = z.infer<typeof staffSchema>;
@@ -22,6 +22,9 @@ interface CreateStaffFormProps {
 }
 
 export function CreateStaffForm({ onSubmit, onCancel, isSubmitting }: CreateStaffFormProps) {
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [isLoadingRoles, setIsLoadingRoles] = useState(true);
+
   const {
     register,
     handleSubmit,
@@ -29,6 +32,22 @@ export function CreateStaffForm({ onSubmit, onCancel, isSubmitting }: CreateStaf
   } = useForm<StaffFormInputs>({
     resolver: zodResolver(staffSchema),
   });
+
+  useEffect(() => {
+    fetchRoles();
+  }, []);
+
+  const fetchRoles = async () => {
+    try {
+      setIsLoadingRoles(true);
+      const data = await roleService.getAgencyRoles();
+      setRoles(data);
+    } catch (err) {
+      console.error('Failed to fetch roles:', err);
+    } finally {
+      setIsLoadingRoles(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4">
@@ -80,28 +99,18 @@ export function CreateStaffForm({ onSubmit, onCancel, isSubmitting }: CreateStaf
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Password</label>
-            <input
-              type="password"
-              {...register('password')}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-            />
-            {errors.password && (
-              <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
-            )}
-          </div>
-
-          <div>
             <label className="block text-sm font-medium text-gray-700">Role</label>
             <select
               {...register('role')}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              disabled={isLoadingRoles}
             >
               <option value="">Select a role</option>
-              <option value="bank_staff">Bank Staff</option>
-              <option value="bank_admin">Bank Admin</option>
-              <option value="teller">Teller</option>
-              <option value="loan_officer">Loan Officer</option>
+              {roles.map((role) => (
+                <option key={role.id} value={role.name}>
+                  {role.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                </option>
+              ))}
             </select>
             {errors.role && (
               <p className="mt-1 text-sm text-red-600">{errors.role.message}</p>
@@ -127,7 +136,7 @@ export function CreateStaffForm({ onSubmit, onCancel, isSubmitting }: CreateStaf
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isLoadingRoles}
               className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? 'Adding...' : 'Add Staff Member'}

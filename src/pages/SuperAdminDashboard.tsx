@@ -5,6 +5,7 @@ import { SuperAdminOverview } from '../components/superadmin/tabs/SuperAdminOver
 import { BankManagement } from '../components/superadmin/tabs/BankManagement';
 import { AgencyManagement } from '../components/superadmin/tabs/AgencyManagement';
 import { GlobalRequestReview } from '../components/superadmin/tabs/GlobalRequestReview';
+import { RoleManagement } from '../components/superadmin/tabs/RoleManagement';
 import { SuperAdminSettings } from '../components/superadmin/tabs/SuperAdminSettings';
 
 export function SuperAdminDashboard() {
@@ -20,6 +21,8 @@ export function SuperAdminDashboard() {
         return <AgencyManagement />;
       case 'requests':
         return <GlobalRequestReview />;
+      case 'roles':
+        return <RoleManagement />;
       case 'settings':
         return <SuperAdminSettings />;
       default:

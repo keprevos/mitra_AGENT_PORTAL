@@ -12,10 +12,23 @@ const Role = sequelize.define('Role', {
     allowNull: false,
     unique: true
   },
-  permissions: {
-    type: DataTypes.JSON,
-    allowNull: false
+  group: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    defaultValue: 'other'
+  },
+  description: {
+    type: DataTypes.TEXT,
+    allowNull: true
   }
 });
+
+Role.associate = (models) => {
+  Role.belongsToMany(models.Permission, {
+    through: models.RolePermission,
+    foreignKey: 'roleId',
+    as: 'permissions' // Alias for the association
+  });
+};
 
 module.exports = Role;

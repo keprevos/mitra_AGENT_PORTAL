@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus } from 'lucide-react';
 import { Agency } from '../../../types/agency';
+import { Bank } from '../../../types/bank';
 import { Staff } from '../../../types/staff';
 import { agencyService } from '../../../api/services/agency.service';
+import { adminService } from '../../../api/services/admin.service';
 import { AgencyList } from '../components/AgencyList';
 import { CreateAgencyForm } from '../forms/CreateAgencyForm';
 import { CreateStaffForm } from '../forms/CreateStaffForm';
@@ -13,15 +15,18 @@ import toast from 'react-hot-toast';
 
 export function AgencyManagement() {
   const [agencies, setAgencies] = useState<Agency[]>([]);
+  const [banks, setBanks] = useState<Bank[]>([]);
   const [selectedAgency, setSelectedAgency] = useState<Agency | null>(null);
   const [staffList, setStaffList] = useState<Staff[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddAgencyModal, setShowAddAgencyModal] = useState(false);
+  const [showEditAgencyModal, setShowEditAgencyModal] = useState(false);
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [bankFilter, setBankFilter] = useState<string>('all');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { hasPermission } = useRole();
@@ -29,6 +34,7 @@ export function AgencyManagement() {
   const canAssignRoles = hasPermission('system.manage_roles');
 
   useEffect(() => {
+    fetchBanks();
     fetchAgencies();
   }, []);
 
@@ -38,11 +44,29 @@ export function AgencyManagement() {
     }
   }, [selectedAgency]);
 
+  const fetchBanks = async () => {
+    try {
+      const data = await adminService.getBanks();
+      setBanks(data);
+    } catch (err) {
+      console.error('Failed to fetch banks:', err);
+      toast.error('Failed to load banks');
+    }
+  };
+
   const fetchAgencies = async () => {
     try {
       setIsLoading(true);
-      // Fetch agencies for all banks
-      const data = await agencyService.getAllAgencies();
+      let data: Agency[];
+      
+      if (bankFilter !== 'all') {
+        // Fetch agencies for specific bank
+        data = await agencyService.getAgencies(bankFilter);
+      } else {
+        // Fetch all agencies
+        data = await agencyService.getAllAgencies();
+      }
+      
       setAgencies(data);
     } catch (err) {
       setError('Failed to fetch agencies');
@@ -51,6 +75,11 @@ export function AgencyManagement() {
       setIsLoading(false);
     }
   };
+
+  // Fetch agencies when bank filter changes
+  useEffect(() => {
+    fetchAgencies();
+  }, [bankFilter]);
 
   const fetchAgencyStaff = async (bankId: string, agencyId: string) => {
     try {
@@ -77,31 +106,21 @@ export function AgencyManagement() {
     }
   };
 
-  const handleCreateStaff = async (data: any) => {
+  const handleEditAgency = async (data: any) => {
     if (!selectedAgency) return;
 
     try {
       setIsSubmitting(true);
-      await agencyService.createAgencyStaff(selectedAgency.bankId, selectedAgency.id, data);
-      toast.success('Staff member created successfully');
-      setShowAddStaffModal(false);
-      fetchAgencyStaff(selectedAgency.bankId, selectedAgency.id);
-    } catch (err) {
-      toast.error('Failed to create staff member');
-      console.error(err);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleEditAgency = async (agency: Agency) => {
-    try {
-      await agencyService.updateAgency(agency.bankId, agency.id, agency);
+      await agencyService.updateAgency(selectedAgency.bankId, selectedAgency.id, data);
       toast.success('Agency updated successfully');
+      setShowEditAgencyModal(false);
+      setSelectedAgency(null);
       fetchAgencies();
     } catch (err) {
       toast.error('Failed to update agency');
       console.error(err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -120,6 +139,23 @@ export function AgencyManagement() {
     }
   };
 
+  const handleCreateStaff = async (data: any) => {
+    if (!selectedAgency) return;
+
+    try {
+      setIsSubmitting(true);
+      await agencyService.createAgencyStaff(selectedAgency.bankId, selectedAgency.id, data);
+      toast.success('Staff member created successfully');
+      setShowAddStaffModal(false);
+      fetchAgencyStaff(selectedAgency.bankId, selectedAgency.id);
+    } catch (err) {
+      toast.error('Failed to create staff member');
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleRoleAssignment = async (staffId: string, roles: string[]) => {
     if (!selectedAgency) return;
 
@@ -134,11 +170,14 @@ export function AgencyManagement() {
     }
   };
 
-  const filteredAgencies = agencies.filter(agency => 
-    agency.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    agency.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    agency.bankName?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredAgencies = agencies.filter(agency => {
+    const matchesSearch = 
+      agency.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      agency.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      agency.bankName?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    return matchesSearch;
+  });
 
   if (isLoading) {
     return (
@@ -164,15 +203,27 @@ export function AgencyManagement() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        {canManageAgencies && (
-          <button
-            onClick={() => setShowAddAgencyModal(true)}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        <div className="flex flex-col sm:flex-row gap-3">
+          <select
+            className="block w-full sm:w-auto pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+            value={bankFilter}
+            onChange={(e) => setBankFilter(e.target.value)}
           >
-            <Plus className="h-5 w-5 mr-2" />
-            Add Agency
-          </button>
-        )}
+            <option value="all">All Banks</option>
+            {banks.map(bank => (
+              <option key={bank.id} value={bank.id}>{bank.name}</option>
+            ))}
+          </select>
+          {canManageAgencies && (
+            <button
+              onClick={() => setShowAddAgencyModal(true)}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              Add Agency
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Agency List */}
@@ -184,7 +235,10 @@ export function AgencyManagement() {
           setSelectedAgency(agency);
           setShowAddStaffModal(true);
         }}
-        onEditAgency={handleEditAgency}
+        onEditAgency={(agency) => {
+          setSelectedAgency(agency);
+          setShowEditAgencyModal(true);
+        }}
         onDeleteAgency={handleDeleteAgency}
       />
 
@@ -203,8 +257,19 @@ export function AgencyManagement() {
       {/* Modals */}
       {showAddAgencyModal && (
         <CreateAgencyForm
+          banks={banks}
           onSubmit={handleCreateAgency}
           onCancel={() => setShowAddAgencyModal(false)}
+          isSubmitting={isSubmitting}
+        />
+      )}
+
+      {showEditAgencyModal && selectedAgency && (
+        <CreateAgencyForm
+          banks={banks}
+          initialData={selectedAgency}
+          onSubmit={handleEditAgency}
+          onCancel={() => setShowEditAgencyModal(false)}
           isSubmitting={isSubmitting}
         />
       )}

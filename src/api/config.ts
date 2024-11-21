@@ -14,6 +14,8 @@ export const API_ENDPOINTS = {
     AGENCIES: '/admin/agencies',
     AGENCY_STAFF: '/admin/agency-staff',
     STATISTICS: '/admin/statistics',
+    ROLES: '/admin/roles',
+
   },
   BANK: {
     STAFF: '/bank/staff',

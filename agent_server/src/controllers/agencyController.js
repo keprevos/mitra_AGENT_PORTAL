@@ -63,24 +63,44 @@ exports.createAgency = async (req, res) => {
   }
 };
 
+exports.getAllAgencies = async (req, res) => {
+  try {
+    const agencies = await Agency.findAll({
+      include: [{
+        model: Bank,
+        attributes: ['name']
+      }]
+    });
+
+    const formattedAgencies = agencies.map(agency => ({
+      ...agency.toJSON(),
+      bankName: agency.Bank?.name
+    }));
+
+    res.json(formattedAgencies);
+  } catch (error) {
+    console.error('Error fetching all agencies:', error);
+    res.status(500).json({ message: 'Failed to fetch agencies' });
+  }
+};
+
 exports.getAgencies = async (req, res) => {
   try {
     const { bankId } = req.params;
     const agencies = await Agency.findAll({
       where: { bankId },
       include: [{
-        model: User,
-        attributes: ['id'],
-        required: false
+        model: Bank,
+        attributes: ['name']
       }]
     });
 
-    const agenciesWithStaffCount = agencies.map(agency => ({
+    const formattedAgencies = agencies.map(agency => ({
       ...agency.toJSON(),
-      staffCount: agency.Users?.length || 0
+      bankName: agency.Bank?.name
     }));
 
-    res.json(agenciesWithStaffCount);
+    res.json(formattedAgencies);
   } catch (error) {
     console.error('Error fetching agencies:', error);
     res.status(500).json({ message: 'Failed to fetch agencies' });

@@ -12,6 +12,7 @@ const bankRoutes = require('./routes/bank');
 const bankStaffRoutes = require('./routes/bankStaff');
 const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin');
+const rolesRoutes = require('./routes/roles');
 
 const app = express();
 
@@ -32,9 +33,10 @@ app.use(limiter);
 
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/admin', adminRoutes); // All admin routes including bank staff management
+app.use('/api/admin', adminRoutes);
 app.use('/api/agents', agentRoutes);
 app.use('/api/banks', bankRoutes);
+app.use('/api/admin', rolesRoutes); // Add roles routes
 
 // Error handling middleware
 app.use((err, req, res, next) => {

@@ -1,50 +1,37 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { X } from 'lucide-react';
 import { createAgencySchema, CreateAgencyDto } from '../../../types/agency';
 import { Bank } from '../../../types/bank';
-import { adminService } from '../../../api/services/admin.service';
 
 interface CreateAgencyFormProps {
+  banks: Bank[];
+  initialData?: Partial<CreateAgencyDto>;
   onSubmit: (data: CreateAgencyDto) => Promise<void>;
   onCancel: () => void;
   isSubmitting?: boolean;
 }
 
-export function CreateAgencyForm({ onSubmit, onCancel, isSubmitting }: CreateAgencyFormProps) {
-  const [banks, setBanks] = useState<Bank[]>([]);
-  const [isLoadingBanks, setIsLoadingBanks] = useState(true);
-
+export function CreateAgencyForm({ banks, initialData, onSubmit, onCancel, isSubmitting }: CreateAgencyFormProps) {
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<CreateAgencyDto>({
     resolver: zodResolver(createAgencySchema),
+    defaultValues: initialData,
   });
 
-  useEffect(() => {
-    fetchBanks();
-  }, []);
-
-  const fetchBanks = async () => {
-    try {
-      setIsLoadingBanks(true);
-      const data = await adminService.getBanks();
-      setBanks(data);
-    } catch (err) {
-      console.error('Failed to fetch banks:', err);
-    } finally {
-      setIsLoadingBanks(false);
-    }
-  };
+  const isEditing = !!initialData;
 
   return (
     <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6">
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-lg font-medium text-gray-900">Create New Agency</h3>
+          <h3 className="text-lg font-medium text-gray-900">
+            {isEditing ? 'Edit Agency' : 'Create New Agency'}
+          </h3>
           <button onClick={onCancel} className="text-gray-400 hover:text-gray-500">
             <X className="h-6 w-6" />
           </button>
@@ -57,7 +44,7 @@ export function CreateAgencyForm({ onSubmit, onCancel, isSubmitting }: CreateAge
             <select
               {...register('bankId')}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-              disabled={isLoadingBanks}
+              disabled={isEditing}
             >
               <option value="">Select a bank</option>
               {banks.map((bank) => (
@@ -134,59 +121,61 @@ export function CreateAgencyForm({ onSubmit, onCancel, isSubmitting }: CreateAge
             </div>
           </div>
 
-          {/* Admin Information */}
-          <div className="border-t border-gray-200 pt-6">
-            <h4 className="text-sm font-medium text-gray-900">Agency Administrator</h4>
-            <div className="mt-4 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-              <div className="sm:col-span-6">
-                <label className="block text-sm font-medium text-gray-700">Email *</label>
-                <input
-                  type="email"
-                  {...register('adminEmail')}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                />
-                {errors.adminEmail && (
-                  <p className="mt-1 text-sm text-red-600">{errors.adminEmail.message}</p>
-                )}
-              </div>
+          {/* Admin Information - Only show for new agencies */}
+          {!isEditing && (
+            <div className="border-t border-gray-200 pt-6">
+              <h4 className="text-sm font-medium text-gray-900">Agency Administrator</h4>
+              <div className="mt-4 grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                <div className="sm:col-span-6">
+                  <label className="block text-sm font-medium text-gray-700">Email *</label>
+                  <input
+                    type="email"
+                    {...register('adminEmail')}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  />
+                  {errors.adminEmail && (
+                    <p className="mt-1 text-sm text-red-600">{errors.adminEmail.message}</p>
+                  )}
+                </div>
 
-              <div className="sm:col-span-3">
-                <label className="block text-sm font-medium text-gray-700">First Name *</label>
-                <input
-                  type="text"
-                  {...register('adminFirstName')}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                />
-                {errors.adminFirstName && (
-                  <p className="mt-1 text-sm text-red-600">{errors.adminFirstName.message}</p>
-                )}
-              </div>
+                <div className="sm:col-span-3">
+                  <label className="block text-sm font-medium text-gray-700">First Name *</label>
+                  <input
+                    type="text"
+                    {...register('adminFirstName')}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  />
+                  {errors.adminFirstName && (
+                    <p className="mt-1 text-sm text-red-600">{errors.adminFirstName.message}</p>
+                  )}
+                </div>
 
-              <div className="sm:col-span-3">
-                <label className="block text-sm font-medium text-gray-700">Last Name *</label>
-                <input
-                  type="text"
-                  {...register('adminLastName')}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                />
-                {errors.adminLastName && (
-                  <p className="mt-1 text-sm text-red-600">{errors.adminLastName.message}</p>
-                )}
-              </div>
+                <div className="sm:col-span-3">
+                  <label className="block text-sm font-medium text-gray-700">Last Name *</label>
+                  <input
+                    type="text"
+                    {...register('adminLastName')}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  />
+                  {errors.adminLastName && (
+                    <p className="mt-1 text-sm text-red-600">{errors.adminLastName.message}</p>
+                  )}
+                </div>
 
-              <div className="sm:col-span-6">
-                <label className="block text-sm font-medium text-gray-700">Password *</label>
-                <input
-                  type="password"
-                  {...register('adminPassword')}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                />
-                {errors.adminPassword && (
-                  <p className="mt-1 text-sm text-red-600">{errors.adminPassword.message}</p>
-                )}
+                <div className="sm:col-span-6">
+                  <label className="block text-sm font-medium text-gray-700">Password *</label>
+                  <input
+                    type="password"
+                    {...register('adminPassword')}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  />
+                  {errors.adminPassword && (
+                    <p className="mt-1 text-sm text-red-600">{errors.adminPassword.message}</p>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           <div className="flex justify-end space-x-3">
             <button
@@ -198,10 +187,10 @@ export function CreateAgencyForm({ onSubmit, onCancel, isSubmitting }: CreateAge
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || isLoadingBanks}
+              disabled={isSubmitting}
               className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? 'Creating...' : 'Create Agency'}
+              {isSubmitting ? (isEditing ? 'Saving...' : 'Creating...') : (isEditing ? 'Save Changes' : 'Create Agency')}
             </button>
           </div>
         </form>

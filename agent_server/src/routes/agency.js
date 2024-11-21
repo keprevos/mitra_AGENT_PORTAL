@@ -3,6 +3,13 @@ const router = express.Router();
 const { auth, checkRole } = require('../middleware/auth');
 const agencyController = require('../controllers/agencyController');
 
+// Get all agencies (Super Admin)
+router.get('/agencies', 
+  auth, 
+  checkRole(['super_admin']), 
+  agencyController.getAllAgencies
+);
+
 // Agency Management
 router.post('/banks/:bankId/agencies', 
   auth, 
