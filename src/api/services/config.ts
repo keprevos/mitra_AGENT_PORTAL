@@ -1,27 +1,27 @@
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
-
 export const API_ENDPOINTS = {
   AUTH: {
     LOGIN: '/auth/login',
     LOGOUT: '/auth/logout',
     REFRESH_TOKEN: '/auth/refresh-token',
-    RESET_PASSWORD: '/auth/reset-password',
+    VALIDATE_TOKEN: '/auth/validate-token',
   },
   SUPER_ADMIN: {
     BANKS: '/admin/banks',
     BANK_STAFF: '/admin/bank-staff',
-    AGENTS: '/admin/agents',
-    AGENT_STAFF: '/admin/agent-staff',
+    AGENCIES: '/admin/agencies',
+    AGENCY_STAFF: '/admin/agency-staff',
     STATISTICS: '/admin/statistics',
+    ROLES: '/roles',
   },
   BANK: {
     STAFF: '/bank/staff',
     AGENTS: '/bank/agents',
     SETTINGS: '/bank/settings',
   },
-  AGENT: {
-    STAFF: '/agent/staff',
-    CUSTOMERS: '/agent/customers',
-    REQUESTS: '/agent/requests',
+  AGENCY: {
+    STAFF: '/agency/staff',
+    CUSTOMERS: '/agency/customers',
+    TRANSACTIONS: '/agency/transactions',
+    STATISTICS: '/agency/statistics',
   },
 };

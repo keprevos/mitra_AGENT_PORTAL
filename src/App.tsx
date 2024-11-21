@@ -6,6 +6,7 @@ import { ProtectedRoute } from './components/common/ProtectedRoute';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { BankDashboard } from './pages/BankDashboard';
+import { AgencyDashboard } from './pages/AgencyDashboard';
 import { SuperAdminDashboard } from './pages/SuperAdminDashboard';
 import { Unauthorized } from './pages/Unauthorized';
 import { useAuth } from './contexts/AuthContext';
@@ -20,7 +21,8 @@ function DashboardRouter() {
       return <SuperAdminDashboard />;
     case 'bank_admin':
       return <BankDashboard />;
-    case 'agent':
+    case 'agency_admin':
+      return <AgencyDashboard />;
     case 'agent_staff':
       return <Dashboard />;
     default:
@@ -37,38 +39,11 @@ export default function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/unauthorized" element={<Unauthorized />} />
             
-            {/* Super Admin Routes */}
-            <Route
-              path="/super-admin/*"
-              element={
-                <ProtectedRoute
-                  requiredPermissions={['system.manage_banks']}
-                >
-                  <SuperAdminDashboard />
-                </ProtectedRoute>
-              }
-            />
-
-            {/* Bank Admin Routes */}
-            <Route
-              path="/bank-admin/*"
-              element={
-                <ProtectedRoute
-                  requiredPermissions={['bank.manage_agents', 'bank.manage_staff']}
-                  requiresAllPermissions={false}
-                >
-                  <BankDashboard />
-                </ProtectedRoute>
-              }
-            />
-
-            {/* Agent Routes */}
+            {/* Protected Routes */}
             <Route
               path="/dashboard"
               element={
-                <ProtectedRoute
-                  requiredPermissions={['agency.manage_customers']}
-                >
+                <ProtectedRoute>
                   <DashboardRouter />
                 </ProtectedRoute>
               }

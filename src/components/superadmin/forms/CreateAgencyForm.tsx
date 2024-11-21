@@ -26,7 +26,7 @@ export function CreateAgencyForm({ banks, initialData, onSubmit, onCancel, isSub
   const isEditing = !!initialData;
 
   return (
-    <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-lg font-medium text-gray-900">

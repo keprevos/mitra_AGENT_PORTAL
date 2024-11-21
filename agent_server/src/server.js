@@ -7,11 +7,13 @@ require('dotenv').config();
 // Import models and initialize associations
 require('./models/index');
 const sequelize = require('./config/database');
-const agentRoutes = require('./routes/agent');
-const bankRoutes = require('./routes/bank');
-const bankStaffRoutes = require('./routes/bankStaff');
+
+// Import routes
 const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin');
+const agencyRoutes = require('./routes/agency');
+const bankRoutes = require('./routes/bank');
+const bankStaffRoutes = require('./routes/bankStaff');
 const rolesRoutes = require('./routes/roles');
 
 const app = express();
@@ -26,17 +28,18 @@ app.use(express.json());
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
 });
 app.use(limiter);
 
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/agents', agentRoutes);
+app.use('/api/agencies', agencyRoutes);
 app.use('/api/banks', bankRoutes);
-app.use('/api/admin', rolesRoutes); // Add roles routes
+app.use('/api/bank-staff', bankStaffRoutes);
+app.use('/api/roles', rolesRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

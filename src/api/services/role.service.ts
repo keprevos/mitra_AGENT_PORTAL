@@ -36,6 +36,10 @@ class RoleService extends BaseService {
   async deleteRole(id: string): Promise<void> {
     return this.delete(`${API_ENDPOINTS.SUPER_ADMIN.ROLES}/${id}`);
   }
+
+  async assignPermissions(roleId: string, permissions: string[]): Promise<Role> {
+    return this.put<Role>(`${API_ENDPOINTS.SUPER_ADMIN.ROLES}/${roleId}/permissions`, { permissions });
+  }
 }
 
 export const roleService = new RoleService();

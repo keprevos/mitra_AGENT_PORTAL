@@ -210,7 +210,7 @@ exports.getAgencyStaff = async (req, res) => {
       where: { agencyId, bankId },
       include: [{
         model: Role,
-        attributes: ['name', 'permissions']
+        attributes: ['name']
       }],
       attributes: [
         'id',

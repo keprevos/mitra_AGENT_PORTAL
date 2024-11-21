@@ -21,7 +21,7 @@ export function Login() {
       setIsLoading(false);
     }
   };
-
+alert(isAuthenticated );
   if (isAuthenticated) {
     return <Navigate to="/dashboard" replace />;
   }

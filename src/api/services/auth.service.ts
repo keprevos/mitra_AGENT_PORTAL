@@ -23,6 +23,7 @@ export const authService = {
   async login(credentials: LoginCredentials): Promise<LoginResponse> {
     try {
       const response = await axiosInstance.post(API_ENDPOINTS.AUTH.LOGIN, credentials);
+      console.log(response);
       
       if (response.data.token) {
         localStorage.setItem('token', response.data.token);

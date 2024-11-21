@@ -1,97 +1,86 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Shield, Edit2, Trash2 } from 'lucide-react';
-import { Role, Permission, roleService } from '../../../api/services/role.service';
-import { RoleForm } from '../forms/RoleForm';
+import { Search, Plus, Edit2, Trash2, Shield } from 'lucide-react';
+import { AgencyStaff, agencyService } from '../../../api/services/agency.service';
+import { CreateStaffForm } from '../forms/CreateStaffForm';
 import toast from 'react-hot-toast';
 
-export function RoleManagement() {
-  const [roles, setRoles] = useState<Role[]>([]);
-  const [permissions, setPermissions] = useState<Permission[]>([]);
+export function StaffManagement() {
+  const [staffList, setStaffList] = useState<AgencyStaff[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+  const [selectedStaff, setSelectedStaff] = useState<AgencyStaff | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    fetchRolesAndPermissions();
+    fetchStaff();
   }, []);
 
-  const fetchRolesAndPermissions = async () => {
+  const fetchStaff = async () => {
     try {
       setIsLoading(true);
-      const [rolesData, permissionsData] = await Promise.all([
-        roleService.getRoles(),
-        roleService.getPermissions()
-      ]);
-      setRoles(rolesData);
-      setPermissions(permissionsData);
+      const data = await agencyService.getStaff();
+      setStaffList(data);
     } catch (err) {
-      setError('Failed to fetch roles and permissions');
+      setError('Failed to fetch staff');
       console.error(err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleCreateRole = async (data: Partial<Role>) => {
+  const handleCreateStaff = async (data: Partial<AgencyStaff>) => {
     try {
       setIsSubmitting(true);
-      await roleService.createRole(data);
-      toast.success('Role created successfully');
+      await agencyService.createStaff(data);
+      toast.success('Staff member created successfully');
       setShowAddModal(false);
-      fetchRolesAndPermissions();
+      fetchStaff();
     } catch (err) {
-      toast.error('Failed to create role');
+      toast.error('Failed to create staff member');
       console.error(err);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleUpdateRole = async (data: Partial<Role>) => {
-    if (!selectedRole) return;
-
+  const handleUpdateStaff = async (data: Partial<AgencyStaff>) => {
+    if (!selectedStaff) return;
+    
     try {
       setIsSubmitting(true);
-      await roleService.updateRole(selectedRole.id, data);
-      toast.success('Role updated successfully');
+      await agencyService.updateStaff(selectedStaff.id, data);
+      toast.success('Staff member updated successfully');
       setShowEditModal(false);
-      setSelectedRole(null);
-      fetchRolesAndPermissions();
+      setSelectedStaff(null);
+      fetchStaff();
     } catch (err) {
-      toast.error('Failed to update role');
+      toast.error('Failed to update staff member');
       console.error(err);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDeleteRole = async (roleId: string) => {
+  const handleDeleteStaff = async (staffId: string) => {
     try {
-      await roleService.deleteRole(roleId);
-      toast.success('Role deleted successfully');
-      fetchRolesAndPermissions();
+      await agencyService.deleteStaff(staffId);
+      toast.success('Staff member deleted successfully');
+      fetchStaff();
     } catch (err) {
-      toast.error('Failed to delete role');
+      toast.error('Failed to delete staff member');
       console.error(err);
     }
   };
 
-  const filteredRoles = roles.filter(role =>
-    role.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    role.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredStaff = staffList.filter(staff => 
+    staff.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    staff.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    staff.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    staff.role.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  const groupedPermissions = permissions.reduce((acc, permission) => {
-    if (!acc[permission.category]) {
-      acc[permission.category] = [];
-    }
-    acc[permission.category].push(permission);
-    return acc;
-  }, {} as Record<string, Permission[]>);
 
   if (isLoading) {
     return (
@@ -119,7 +108,7 @@ export function RoleManagement() {
           <input
             type="text"
             className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-            placeholder="Search roles..."
+            placeholder="Search staff..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -129,7 +118,7 @@ export function RoleManagement() {
           className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
         >
           <Plus className="h-5 w-5 mr-2" />
-          Add Role
+          Add Staff Member
         </button>
       </div>
 
@@ -138,13 +127,16 @@ export function RoleManagement() {
           <thead className="bg-gray-50">
             <tr>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Role Name
+                Staff Member
               </th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Group
+                Role
               </th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Permissions
+                Status
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Last Login
               </th>
               <th scope="col" className="relative px-6 py-3">
                 <span className="sr-only">Actions</span>
@@ -152,41 +144,50 @@ export function RoleManagement() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {filteredRoles.map((role) => (
-              <tr key={role.id} className="hover:bg-gray-50">
+            {filteredStaff.map((staff) => (
+              <tr key={staff.id}>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
-                    <Shield className="h-5 w-5 text-gray-400 mr-2" />
-                    <div className="text-sm font-medium text-gray-900">
-                      {role.name}
+                    <div className="flex-shrink-0 h-10 w-10">
+                      <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                        <span className="text-indigo-600 font-medium">
+                          {staff.firstName[0]}{staff.lastName[0]}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="ml-4">
+                      <div className="text-sm font-medium text-gray-900">
+                        {staff.firstName} {staff.lastName}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {staff.email}
+                      </div>
                     </div>
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{role.group}</div>
+                  <div className="text-sm text-gray-900">{staff.role}</div>
+                  {staff.department && (
+                    <div className="text-sm text-gray-500">{staff.department}</div>
+                  )}
                 </td>
-                <td className="px-6 py-4">
-                  <div className="flex flex-wrap gap-2">
-                    {role.permissions.slice(0, 3).map((permission) => (
-                      <span
-                        key={permission.id}
-                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                      >
-                        {permission.name}
-                      </span>
-                    ))}
-                    {role.permissions.length > 3 && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                        +{role.permissions.length - 3} more
-                      </span>
-                    )}
-                  </div>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                    staff.status === 'active' 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-red-100 text-red-800'
+                  }`}>
+                    {staff.status}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {staff.lastLogin ? new Date(staff.lastLogin).toLocaleDateString() : 'Never'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <div className="flex items-center justify-end space-x-2">
                     <button
                       onClick={() => {
-                        setSelectedRole(role);
+                        setSelectedStaff(staff);
                         setShowEditModal(true);
                       }}
                       className="text-indigo-600 hover:text-indigo-900"
@@ -194,9 +195,8 @@ export function RoleManagement() {
                       <Edit2 className="h-5 w-5" />
                     </button>
                     <button
-                      onClick={() => handleDeleteRole(role.id)}
+                      onClick={() => handleDeleteStaff(staff.id)}
                       className="text-red-600 hover:text-red-900"
-                      disabled={['super_admin', 'bank_admin', 'bank_staff', 'agency_admin', 'agent_staff'].includes(role.name)}
                     >
                       <Trash2 className="h-5 w-5" />
                     </button>
@@ -208,16 +208,23 @@ export function RoleManagement() {
         </table>
       </div>
 
-      {(showAddModal || showEditModal) && (
-        <RoleForm
-          initialData={selectedRole}
-          permissions={permissions}
-          groupedPermissions={groupedPermissions}
-          onSubmit={showAddModal ? handleCreateRole : handleUpdateRole}
+      {/* Create Staff Modal */}
+      {showAddModal && (
+        <CreateStaffForm
+          onSubmit={handleCreateStaff}
+          onCancel={() => setShowAddModal(false)}
+          isSubmitting={isSubmitting}
+        />
+      )}
+
+      {/* Edit Staff Modal */}
+      {showEditModal && selectedStaff && (
+        <CreateStaffForm
+          initialData={selectedStaff}
+          onSubmit={handleUpdateStaff}
           onCancel={() => {
-            setShowAddModal(false);
             setShowEditModal(false);
-            setSelectedRole(null);
+            setSelectedStaff(null);
           }}
           isSubmitting={isSubmitting}
         />
