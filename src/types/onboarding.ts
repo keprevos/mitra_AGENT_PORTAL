@@ -41,50 +41,6 @@ export enum RequestStatus {
   CLOSED = 999                // REQSTATUS00159 - Demande clôturée
 }
 
-export interface RequestStatusConfig {
-  code: string;
-  description: string;
-  visibleToClient: boolean;
-  clientMessage?: string;
-  source?: string;
-  destination?: string;
-  action?: string;
-  requiresCTO?: boolean;
-  requiresN2?: boolean;
-  requiresN1?: boolean;
-  origin: string;
-  integration?: boolean;
-  requiresDeposit?: boolean;
-  eloquaNotification?: boolean;
-  step?: 'signature' | 'refuser' | 'accepter' | 'abandonner';
-}
-
-export const REQUEST_STATUS_CONFIG: Record<RequestStatus, RequestStatusConfig> = {
-  [RequestStatus.DRAFT]: {
-    code: 'REQSTATUS00030',
-    description: 'Demande enregistrée',
-    visibleToClient: true,
-    clientMessage: 'Votre demande a été initiée.',
-    origin: 'BO - demandes non finalisées'
-  },
-  // ... add configurations for all statuses
-};
-
-export interface OnboardingRequest {
-  id: string;
-  status: RequestStatus;
-  personalInfo: PersonalInfo;
-  businessInfo: BusinessInfo;
-  shareholders: Shareholder[];
-  documents: Documents;
-  history: StatusHistory[];
-  createdAt: Date;
-  updatedAt: Date;
-  agentId: string;
-  bankId: string;
-  agencyId: string;
-}
-
 export interface PersonalInfo {
   title: 'madame' | 'monsieur';
   surname: string;
@@ -127,29 +83,45 @@ export interface BusinessInfo {
 export interface Shareholder {
   type: 'individual' | 'company';
   ownershipPercentage: number;
-  // Individual shareholder fields
+  // Individual fields
   firstName?: string;
   lastName?: string;
   birthDate?: string;
   nationality?: string;
-  // Company shareholder fields
+  // Company fields
   companyName?: string;
   registrationNumber?: string;
 }
 
 export interface Documents {
-  proofOfResidence?: File[];
-  identityDocument?: File[];
-  signature?: File[];
-  bankDetails?: File[];
+  proofOfResidence: string[];
+  identityDocument: string[];
+  signature: string[];
+  bankDetails: string[];
 }
 
-export interface StatusHistory {
+export interface OnboardingRequest {
   id: string;
+  personalInfo: PersonalInfo;
+  businessInfo: BusinessInfo;
+  shareholders: Shareholder[];
+  documents: Documents;
   status: RequestStatus;
-  timestamp: Date;
-  comment?: string;
-  userId: string;
-  userName: string;
-  userRole: string;
+  agentId: string;
+  bankId: string;
+  agencyId: string;
+  validatedBy?: string;
+  validationDate?: Date;
+  validationComments?: Record<string, any>;
+  lastModifiedBy?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  history?: Array<{
+    id: string;
+    status: RequestStatus;
+    userId: string;
+    userName: string;
+    comment?: string;
+    timestamp: Date;
+  }>;
 }

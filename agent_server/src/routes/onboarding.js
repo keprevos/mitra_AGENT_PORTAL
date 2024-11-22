@@ -43,12 +43,6 @@ router.post('/requests/:id/documents',
   onboardingController.uploadDocument
 );
 
-// Get request history
-router.get('/requests/:id/history',
-  auth,
-  onboardingController.getRequestHistory
-);
-
 // Get requests list
 router.get('/requests',
   auth,

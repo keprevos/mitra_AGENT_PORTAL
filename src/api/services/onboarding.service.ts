@@ -36,14 +36,19 @@ class OnboardingService extends BaseService {
 
   async uploadDocument(
     requestId: string,
-    type: keyof Documents,
+    type: string,
     file: File
-  ): Promise<{ url: string }> {
+  ): Promise<{ 
+    url: string;
+    originalName: string;
+    mimeType: string;
+    size: number;
+  }> {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('type', type);
 
-    return this.post<{ url: string }>(
+    return this.post(
       `${API_ENDPOINTS.ONBOARDING.REQUESTS}/${requestId}/documents`,
       formData,
       {
@@ -51,19 +56,6 @@ class OnboardingService extends BaseService {
           'Content-Type': 'multipart/form-data'
         }
       }
-    );
-  }
-
-  async validateRequest(
-    id: string,
-    validations: Record<string, { 
-      status: 'valid' | 'invalid' | 'warning';
-      comment?: string;
-    }>
-  ): Promise<OnboardingRequest> {
-    return this.post<OnboardingRequest>(
-      `${API_ENDPOINTS.ONBOARDING.REQUESTS}/${id}/validate`,
-      { validations }
     );
   }
 

@@ -6,7 +6,6 @@ const { uploadFile } = require('../utils/fileUpload');
 const { validateRequest } = require('../utils/requestValidation');
 const { sendNotification } = require('../utils/notifications');
 
-// Create request
 exports.createRequest = async (req, res) => {
   try {
     const { personalInfo, businessInfo, shareholders, documents } = req.body;
@@ -32,7 +31,12 @@ exports.createRequest = async (req, res) => {
       personalInfo: personalInfo || {},
       businessInfo: businessInfo || {},
       shareholders: shareholders || [],
-      documents: documents || {},
+      documents: documents || {
+        proofOfResidence: [],
+        identityDocument: [],
+        signature: [],
+        bankDetails: []
+      },
       statusId: initialStatus.id,
       agentId: req.user.id,
       bankId: req.user.bankId,
@@ -48,7 +52,16 @@ exports.createRequest = async (req, res) => {
       comment: 'Request created'
     });
 
-    res.status(201).json(request);
+    // Get request with status info
+    const requestWithStatus = await OnboardingRequest.findOne({
+      where: { id: request.id },
+      include: [{
+        model: RequestStatus,
+        as: 'status'
+      }]
+    });
+
+    res.status(201).json(requestWithStatus);
   } catch (error) {
     console.error('Error creating request:', error);
     res.status(500).json({ 
@@ -58,18 +71,21 @@ exports.createRequest = async (req, res) => {
   }
 };
 
-// Update request
 exports.updateRequest = async (req, res) => {
   try {
     const { id } = req.params;
     const { personalInfo, businessInfo, shareholders, documents } = req.body;
 
-    // Find request
+    // Find request with status
     const request = await OnboardingRequest.findOne({
       where: {
         id,
         agentId: req.user.id
-      }
+      },
+      include: [{
+        model: RequestStatus,
+        as: 'status'
+      }]
     });
 
     if (!request) {
@@ -77,10 +93,9 @@ exports.updateRequest = async (req, res) => {
     }
 
     // Only allow updates if request is in draft or correction status
-    const currentStatus = await RequestStatus.findByPk(request.statusId);
     const allowedStatuses = ['REQSTATUS00030', 'REQSTATUS00034', 'REQSTATUS00035'];
     
-    if (!allowedStatuses.includes(currentStatus.code)) {
+    if (!allowedStatuses.includes(request.status.code)) {
       return res.status(403).json({ 
         message: 'Request cannot be modified in its current status' 
       });
@@ -102,7 +117,7 @@ exports.updateRequest = async (req, res) => {
       where: { id },
       include: [{
         model: RequestStatus,
-        attributes: ['code', 'description', 'visibility', 'clientMessage']
+        as: 'status'
       }]
     });
 
@@ -116,38 +131,71 @@ exports.updateRequest = async (req, res) => {
   }
 };
 
-// Get request by ID
-exports.getRequest = async (req, res) => {
+exports.uploadDocument = async (req, res) => {
   try {
+    const { file } = req;
+    const { type } = req.body;
+    
+    if (!file) {
+      return res.status(400).json({ message: 'No file provided' });
+    }
+
     const request = await OnboardingRequest.findOne({
       where: { id: req.params.id },
-      include: [
-        {
-          model: RequestStatus,
-          attributes: ['code', 'description', 'visibility', 'clientMessage']
-        }
-      ]
+      include: [{
+        model: RequestStatus,
+        as: 'status'
+      }]
     });
 
     if (!request) {
       return res.status(404).json({ message: 'Request not found' });
     }
 
-    res.json(request);
+    // Upload file
+    const uploadResult = await uploadFile(file);
+
+    // Update request documents
+    const documents = request.documents || {
+      proofOfResidence: [],
+      identityDocument: [],
+      signature: [],
+      bankDetails: []
+    };
+
+    if (!documents[type]) {
+      documents[type] = [];
+    }
+    documents[type].push(uploadResult.url);
+
+    await request.update({
+      documents,
+      lastModifiedBy: req.user.id
+    });
+
+    res.json({ 
+      url: uploadResult.url,
+      originalName: uploadResult.originalName,
+      mimeType: uploadResult.mimeType,
+      size: uploadResult.size
+    });
   } catch (error) {
-    console.error('Error fetching request:', error);
-    res.status(500).json({ message: 'Failed to fetch request' });
+    console.error('Error uploading document:', error);
+    res.status(500).json({ message: 'Failed to upload document' });
   }
 };
 
-// Submit request for review
 exports.submitRequest = async (req, res) => {
   try {
     const request = await OnboardingRequest.findOne({
       where: { 
         id: req.params.id,
         agentId: req.user.id
-      }
+      },
+      include: [{
+        model: RequestStatus,
+        as: 'status'
+      }]
     });
 
     if (!request) {
@@ -195,76 +243,43 @@ exports.submitRequest = async (req, res) => {
       agencyId: request.agencyId
     });
 
-    res.json(request);
+    // Get updated request with status
+    const updatedRequest = await OnboardingRequest.findOne({
+      where: { id: request.id },
+      include: [{
+        model: RequestStatus,
+        as: 'status'
+      }]
+    });
+
+    res.json(updatedRequest);
   } catch (error) {
     console.error('Error submitting request:', error);
     res.status(500).json({ message: 'Failed to submit request' });
   }
 };
 
-// Upload document
-exports.uploadDocument = async (req, res) => {
+exports.getRequest = async (req, res) => {
   try {
-    const { file } = req;
-    const { type } = req.body;
-    
-    if (!file) {
-      return res.status(400).json({ message: 'No file provided' });
-    }
+    const request = await OnboardingRequest.findOne({
+      where: { id: req.params.id },
+      include: [{
+        model: RequestStatus,
+        as: 'status'
+      }]
+    });
 
-    const request = await OnboardingRequest.findByPk(req.params.id);
     if (!request) {
       return res.status(404).json({ message: 'Request not found' });
     }
 
-    // Upload file
-    const uploadResult = await uploadFile(file);
-
-    // Update request documents
-    const documents = request.documents || {};
-    if (!documents[type]) {
-      documents[type] = [];
-    }
-    documents[type].push(uploadResult.url);
-
-    await request.update({
-      documents,
-      lastModifiedBy: req.user.id
-    });
-
-    res.json({ url: uploadResult.url });
+    res.json(request);
   } catch (error) {
-    console.error('Error uploading document:', error);
-    res.status(500).json({ message: 'Failed to upload document' });
+    console.error('Error fetching request:', error);
+    res.status(500).json({ message: 'Failed to fetch request' });
   }
 };
 
-// Get request history
-exports.getRequestHistory = async (req, res) => {
-  try {
-    const history = await RequestStatusHistory.findAll({
-      where: { requestId: req.params.id },
-      include: [
-        {
-          model: RequestStatus,
-          attributes: ['code', 'description']
-        },
-        {
-          model: User,
-          attributes: ['firstName', 'lastName', 'email']
-        }
-      ],
-      order: [['createdAt', 'DESC']]
-    });
-
-    res.json(history);
-  } catch (error) {
-    console.error('Error fetching history:', error);
-    res.status(500).json({ message: 'Failed to fetch history' });
-  }
-};
-
-// Get requests list
 exports.getRequests = async (req, res) => {
   try {
     const where = {};
@@ -278,12 +293,10 @@ exports.getRequests = async (req, res) => {
 
     const requests = await OnboardingRequest.findAll({
       where,
-      include: [
-        {
-          model: RequestStatus,
-          attributes: ['code', 'description', 'visibility']
-        }
-      ],
+      include: [{
+        model: RequestStatus,
+        as: 'status'
+      }],
       order: [['updatedAt', 'DESC']]
     });
 

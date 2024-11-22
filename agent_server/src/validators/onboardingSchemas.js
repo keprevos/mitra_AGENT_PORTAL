@@ -1,5 +1,17 @@
 const Joi = require('joi');
 
+const documentsSchema = Joi.object({
+  proofOfResidence: Joi.array().items(Joi.string().uri()).default([]),
+  identityDocument: Joi.array().items(Joi.string().uri()).default([]),
+  signature: Joi.array().items(Joi.string().uri()).default([]),
+  bankDetails: Joi.array().items(Joi.string().uri()).default([])
+}).default({
+  proofOfResidence: [],
+  identityDocument: [],
+  signature: [],
+  bankDetails: []
+});
+
 const personalInfoSchema = Joi.object({
   title: Joi.string().valid('madame', 'monsieur').required(),
   surname: Joi.string().min(2).required(),
@@ -62,13 +74,6 @@ const shareholderSchema = Joi.alternatives().try(
   individualShareholderSchema,
   companyShareholderSchema
 );
-
-const documentsSchema = Joi.object({
-  proofOfResidence: Joi.array().items(Joi.string().uri()).default([]),
-  identityDocument: Joi.array().items(Joi.string().uri()).default([]),
-  signature: Joi.array().items(Joi.string().uri()).default([]),
-  bankDetails: Joi.array().items(Joi.string().uri()).default([])
-}).default({});
 
 exports.onboardingSchemas = {
   // Schema for creating/updating personal info only

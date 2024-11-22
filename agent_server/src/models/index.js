@@ -12,9 +12,9 @@ const User = require('./User');
 const Role = require('./Role');
 const Bank = require('./Bank');
 const Agency = require('./Agency');
-const AccountRequest = require('./AccountRequest');
-const PersonalDetails = require('./PersonalDetails');
-const BusinessDetails = require('./BusinessDetails');
+const OnboardingRequest = require('./OnboardingRequest');
+const RequestStatus = require('./RequestStatus');
+const RequestStatusHistory = require('./RequestStatusHistory');
 const Permission = require('./Permission');
 const RolePermission = require('./RolePermission');
 
@@ -31,10 +31,17 @@ Agency.belongsTo(Bank, { foreignKey: 'bankId' });
 Agency.hasMany(User, { foreignKey: 'agencyId' });
 User.belongsTo(Agency, { foreignKey: 'agencyId' });
 
-AccountRequest.belongsTo(PersonalDetails, { foreignKey: 'personalDetailsId' });
-AccountRequest.belongsTo(BusinessDetails, { foreignKey: 'businessDetailsId' });
-AccountRequest.belongsTo(Bank, { foreignKey: 'bankId' });
-AccountRequest.belongsTo(Agency, { foreignKey: 'agencyId' });
+// Onboarding associations
+OnboardingRequest.belongsTo(RequestStatus, { foreignKey: 'statusId', as: 'status' });
+RequestStatus.hasMany(OnboardingRequest, { foreignKey: 'statusId', as: 'requests' });
+
+OnboardingRequest.belongsTo(User, { foreignKey: 'agentId', as: 'agent' });
+OnboardingRequest.belongsTo(Bank, { foreignKey: 'bankId', as: 'bank' });
+OnboardingRequest.belongsTo(Agency, { foreignKey: 'agencyId', as: 'agency' });
+OnboardingRequest.belongsTo(User, { foreignKey: 'validatedBy', as: 'validator' });
+OnboardingRequest.belongsTo(User, { foreignKey: 'lastModifiedBy', as: 'modifier' });
+
+// Role-Permission associations
 Role.belongsToMany(Permission, {
   through: RolePermission,
   foreignKey: 'roleId',
@@ -52,8 +59,10 @@ module.exports = {
   Role,
   Bank,
   Agency,
-  AccountRequest,
-  PersonalDetails,
-  BusinessDetails,
+  OnboardingRequest,
+  RequestStatus,
+  RequestStatusHistory,
+  Permission,
+  RolePermission,
   sequelize: config.use_env_variable ? new Sequelize(process.env[config.use_env_variable], config) : new Sequelize(config.database, config.username, config.password, config)
 };

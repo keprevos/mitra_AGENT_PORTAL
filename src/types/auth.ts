@@ -46,13 +46,33 @@ export interface Agent {
   pendingRequests: number;
 }
 
+// export interface EndUserRequest {
+//   id: number;
+//   agentId: string;
+//   agentName: string;
+//   agencyName: string;
+//   bankId: string;
+//   bankName: string;
+//   name: string;
+//   email: string;
+//   status: 'Pending Review' | 'Approved' | 'Rejected' | 'Information Required';
+//   submissionDate: string;
+//   type: string;
+//   companyName?: string;
+//   lastModified: string;
+//   data?: any;
+//   comments?: Array<{
+//     id: number;
+//     userId: string;
+//     userName: string;
+//     role: 'agent' | 'bank_admin' | 'super_admin';
+//     message: string;
+//     timestamp: string;
+//   }>;
+// }
+
 export interface EndUserRequest {
   id: number;
-  agentId: string;
-  agentName: string;
-  agencyName: string;
-  bankId: string;
-  bankName: string;
   name: string;
   email: string;
   status: 'Pending Review' | 'Approved' | 'Rejected' | 'Information Required';
@@ -60,7 +80,16 @@ export interface EndUserRequest {
   type: string;
   companyName?: string;
   lastModified: string;
-  data?: any;
+  agentId: string;
+  agentName: string;
+  agencyName: string;
+  bankId: string;
+  bankName: string;
+  data?: {
+    personal?: any;
+    business?: any;
+    documents?: any;
+  };
   comments?: Array<{
     id: number;
     userId: string;

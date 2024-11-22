@@ -7,27 +7,22 @@ const OnboardingRequest = sequelize.define('OnboardingRequest', {
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true
   },
-  // Personal Info
   personalInfo: {
     type: DataTypes.JSON,
     allowNull: false
   },
-  // Business Info
   businessInfo: {
     type: DataTypes.JSON,
     allowNull: false
   },
-  // Shareholders
   shareholders: {
     type: DataTypes.JSON,
     allowNull: false
   },
-  // Document References
   documents: {
     type: DataTypes.JSON,
     allowNull: false
   },
-  // Status
   statusId: {
     type: DataTypes.INTEGER,
     allowNull: false,
@@ -36,7 +31,6 @@ const OnboardingRequest = sequelize.define('OnboardingRequest', {
       key: 'id'
     }
   },
-  // Relations
   agentId: {
     type: DataTypes.UUID,
     allowNull: false,
@@ -61,7 +55,6 @@ const OnboardingRequest = sequelize.define('OnboardingRequest', {
       key: 'id'
     }
   },
-  // Validation
   validatedBy: {
     type: DataTypes.UUID,
     allowNull: true,
@@ -78,7 +71,6 @@ const OnboardingRequest = sequelize.define('OnboardingRequest', {
     type: DataTypes.JSON,
     allowNull: true
   },
-  // Tracking
   lastModifiedBy: {
     type: DataTypes.UUID,
     allowNull: true,
@@ -87,6 +79,41 @@ const OnboardingRequest = sequelize.define('OnboardingRequest', {
       key: 'id'
     }
   }
+}, {
+  defaultScope: {
+    include: [{
+      model: sequelize.models.RequestStatus,
+      as: 'status'
+    }]
+  }
 });
+
+// Define associations
+OnboardingRequest.associate = (models) => {
+  OnboardingRequest.belongsTo(models.RequestStatus, { 
+    foreignKey: 'statusId',
+    as: 'status'
+  });
+  OnboardingRequest.belongsTo(models.User, { 
+    foreignKey: 'agentId',
+    as: 'agent'
+  });
+  OnboardingRequest.belongsTo(models.Bank, { 
+    foreignKey: 'bankId',
+    as: 'bank'
+  });
+  OnboardingRequest.belongsTo(models.Agency, { 
+    foreignKey: 'agencyId',
+    as: 'agency'
+  });
+  OnboardingRequest.belongsTo(models.User, { 
+    foreignKey: 'validatedBy',
+    as: 'validator'
+  });
+  OnboardingRequest.belongsTo(models.User, { 
+    foreignKey: 'lastModifiedBy',
+    as: 'modifier'
+  });
+};
 
 module.exports = OnboardingRequest;
