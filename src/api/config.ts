@@ -19,10 +19,14 @@ export const API_ENDPOINTS = {
     SETTINGS: '/bank/settings'
   },
   AGENCY: {
-    STAFF: '/agencies/staff',
-    CUSTOMERS: '/agencies/customers',
-    TRANSACTIONS: '/agencies/transactions',
-    STATISTICS: '/agencies/statistics',
-    SETTINGS: '/agencies/settings'
+    STAFF: '/agency/staff',
+    CUSTOMERS: '/agency/customers',
+    TRANSACTIONS: '/agency/transactions',
+    STATISTICS: '/agency/statistics'
+  },
+  ONBOARDING: {
+    REQUESTS: '/onboarding/requests',
+    DOCUMENTS: '/onboarding/documents',
+    VALIDATIONS: '/onboarding/validations'
   }
 };

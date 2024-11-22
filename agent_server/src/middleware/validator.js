@@ -2,7 +2,10 @@ const Joi = require('joi');
 
 const validate = (schema) => {
   return (req, res, next) => {
-    const { error } = schema.validate(req.body, { abortEarly: false });
+    const { error } = schema.validate(req.body, { 
+      abortEarly: false,
+      stripUnknown: true // Remove unknown fields
+    });
     
     if (error) {
       const errors = error.details.map(detail => ({

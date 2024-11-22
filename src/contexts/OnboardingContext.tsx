@@ -5,8 +5,8 @@ import {
   Shareholder, 
   Documents,
   RequestStatus
-} from '../../types/onboarding';
-import { onboardingService } from '../../api/services/onboarding.service';
+} from '../types/onboarding';
+import { onboardingService } from '../api/services/onboarding.service';
 import toast from 'react-hot-toast';
 
 interface OnboardingState {

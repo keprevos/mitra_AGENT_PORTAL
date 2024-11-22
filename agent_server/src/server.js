@@ -15,6 +15,7 @@ const agencyRoutes = require('./routes/agency');
 const bankRoutes = require('./routes/bank');
 const bankStaffRoutes = require('./routes/bankStaff');
 const rolesRoutes = require('./routes/roles');
+const onboardingRoutes = require('./routes/onboarding');
 
 const app = express();
 
@@ -40,6 +41,10 @@ app.use('/api/agencies', agencyRoutes);
 app.use('/api/banks', bankRoutes);
 app.use('/api/bank-staff', bankStaffRoutes);
 app.use('/api/roles', rolesRoutes);
+app.use('/api/onboarding', onboardingRoutes);
+
+// Serve uploaded files
+app.use('/uploads', express.static('uploads'));
 
 // Error handling middleware
 app.use((err, req, res, next) => {
