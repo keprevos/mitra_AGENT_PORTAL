@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useState } from 'react';
 import { Upload, X, Check, AlertTriangle, Eye } from 'lucide-react';
 import { useOnboarding } from '../../../contexts/OnboardingContext';
 import { onboardingService } from '../../../api/services/onboarding.service';
@@ -17,7 +17,6 @@ interface FileUploadProps {
 }
 
 function FileUpload({ label, type, files, onUpload, onRemove, error }: FileUploadProps) {
-  const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -37,30 +36,10 @@ function FileUpload({ label, type, files, onUpload, onRemove, error }: FileUploa
     return null;
   };
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  }, []);
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  }, []);
-
-  const handleDrop = useCallback(async (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-
-    const file = e.dataTransfer.files[0];
-    if (file) {
-      await handleFileUpload(file);
-    }
-  }, []);
-
-  const handleFileUpload = async (file: File) => {
     const validationError = validateFile(file);
     if (validationError) {
       toast.error(validationError);
@@ -76,18 +55,11 @@ function FileUpload({ label, type, files, onUpload, onRemove, error }: FileUploa
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
-    } catch (error) {
-      console.error('Upload error:', error);
+    } catch (err) {
+      console.error('Upload error:', err);
       toast.error('Failed to upload file');
     } finally {
       setIsUploading(false);
-    }
-  };
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      await handleFileUpload(file);
     }
   };
 
@@ -96,19 +68,13 @@ function FileUpload({ label, type, files, onUpload, onRemove, error }: FileUploa
       <label className="block text-sm font-medium text-gray-700">
         {label}
       </label>
-      <div
-        className={`
-          relative border-2 border-dashed rounded-lg p-6
-          ${error ? 'border-red-300 bg-red-50' : 
-            files.length > 0 ? 'border-green-300 bg-green-50' : 
-            isDragging ? 'border-indigo-300 bg-indigo-50' :
-            'border-gray-300 bg-gray-50'}
-          transition-colors duration-200
-        `}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
+      <div className={`
+        relative border-2 border-dashed rounded-lg p-6
+        ${error ? 'border-red-300 bg-red-50' : 
+          files.length > 0 ? 'border-green-300 bg-green-50' : 
+          'border-gray-300 bg-gray-50'}
+        transition-colors duration-200
+      `}>
         {files.length > 0 ? (
           <div className="space-y-2">
             {files.map((url, index) => (
@@ -142,12 +108,12 @@ function FileUpload({ label, type, files, onUpload, onRemove, error }: FileUploa
                 <Upload className="h-4 w-4 mr-1" />
                 Upload another file
                 <input
-                  ref={fileInputRef}
                   type="file"
                   className="hidden"
                   accept=".jpg,.jpeg,.png,.pdf"
                   onChange={handleFileChange}
                   disabled={isUploading}
+                  ref={fileInputRef}
                 />
               </label>
             </div>
@@ -160,12 +126,12 @@ function FileUpload({ label, type, files, onUpload, onRemove, error }: FileUploa
                 <span className="relative cursor-pointer rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
                   Upload a file
                   <input
-                    ref={fileInputRef}
                     type="file"
                     className="hidden"
                     accept=".jpg,.jpeg,.png,.pdf"
                     onChange={handleFileChange}
                     disabled={isUploading}
+                    ref={fileInputRef}
                   />
                 </span>
                 <span className="pl-1 text-gray-500">or drag and drop</span>
@@ -194,8 +160,8 @@ function FileUpload({ label, type, files, onUpload, onRemove, error }: FileUploa
 
 export function DocumentsStep() {
   const { state, updateDocuments, nextStep, prevStep } = useOnboarding();
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleUpload = async (type: string, file: File) => {
     if (!state.requestId) {
