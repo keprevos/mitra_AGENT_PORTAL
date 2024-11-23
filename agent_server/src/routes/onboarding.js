@@ -3,14 +3,23 @@ const router = express.Router();
 const { auth, checkRole } = require('../middleware/auth');
 const onboardingController = require('../controllers/onboardingController');
 const upload = require('../middleware/upload');
-const validate = require('../middleware/validator');
-const { onboardingSchemas } = require('../validators/onboardingSchemas');
 
-// Create new request or update existing one
-router.post('/requests',
+// Get all requests
+router.get('/requests', 
   auth,
-  checkRole(['agent_staff']),
-  validate(onboardingSchemas.createRequest),
+  onboardingController.getRequests
+);
+
+// Get request by ID
+router.get('/requests/:id',
+  auth,
+  onboardingController.getRequest
+);
+
+// Create new request
+router.post('/requests', 
+  auth, 
+  checkRole(['agent_staff']), 
   onboardingController.createRequest
 );
 
@@ -18,14 +27,7 @@ router.post('/requests',
 router.put('/requests/:id',
   auth,
   checkRole(['agent_staff']),
-  validate(onboardingSchemas.updateRequest),
   onboardingController.updateRequest
-);
-
-// Get request by ID
-router.get('/requests/:id',
-  auth,
-  onboardingController.getRequest
 );
 
 // Submit request for review
@@ -43,10 +45,17 @@ router.post('/requests/:id/documents',
   onboardingController.uploadDocument
 );
 
-// Get requests list
-router.get('/requests',
+// Add comment to request
+router.post('/requests/:id/comments',
   auth,
-  onboardingController.getRequests
+  onboardingController.addComment
+);
+
+// Update request status
+router.put('/requests/:id/status',
+  auth,
+  checkRole(['bank_staff', 'bank_admin']),
+  onboardingController.updateRequestStatus
 );
 
 module.exports = router;

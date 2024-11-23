@@ -24,79 +24,23 @@ class RequestService extends BaseService {
   }
 
   async getRequests(): Promise<EndUserRequest[]> {
-    return this.get<EndUserRequest[]>('/requests');
+    return this.get<EndUserRequest[]>('/onboarding/requests');
   }
 
-  async getRequestById(id: number): Promise<EndUserRequest> {
-    if (APP_CONFIG.USE_MOCK_DATA) {
-      const request = mockRequests.find(r => r.id === id);
-      if (!request) {
-        throw new Error('Request not found');
-      }
-      return Promise.resolve(request);
-    }
-
-    return this.get<EndUserRequest>(`/requests/${id}`);
+  async getRequestById(id: string): Promise<EndUserRequest> {
+    return this.get<EndUserRequest>(`/onboarding/requests/${id}`);
   }
 
-  async updateRequestStatus(id: number, update: RequestStatusUpdate): Promise<EndUserRequest> {
-    if (APP_CONFIG.USE_MOCK_DATA) {
-      const request = mockRequests.find(r => r.id === id);
-      if (!request) {
-        throw new Error('Request not found');
-      }
-      return Promise.resolve({
-        ...request,
-        status: update.status,
-        lastModified: new Date().toISOString()
-      });
-    }
-
-    return this.put<EndUserRequest>(`/requests/${id}/status`, update);
+  async updateRequestStatus(id: string, update: RequestStatusUpdate): Promise<EndUserRequest> {
+    return this.put<EndUserRequest>(`/onboarding/requests/${id}/status`, update);
   }
 
-  async addComment(id: number, comment: RequestComment): Promise<EndUserRequest> {
-    if (APP_CONFIG.USE_MOCK_DATA) {
-      const request = mockRequests.find(r => r.id === id);
-      if (!request) {
-        throw new Error('Request not found');
-      }
-      return Promise.resolve({
-        ...request,
-        comments: [
-          ...(request.comments || []),
-          {
-            id: Date.now(),
-            userId: 'mock-user',
-            userName: 'Mock User',
-            role: 'bank_admin',
-            message: comment.message,
-            timestamp: new Date().toISOString()
-          }
-        ]
-      });
-    }
-
-    return this.post<EndUserRequest>(`/requests/${id}/comments`, comment);
+  async addComment(id: string, comment: RequestComment): Promise<EndUserRequest> {
+    return this.post<EndUserRequest>(`/onboarding/requests/${id}/comments`, comment);
   }
 
-  async updateField(id: number, fieldId: string, value: any): Promise<EndUserRequest> {
-    if (APP_CONFIG.USE_MOCK_DATA) {
-      const request = mockRequests.find(r => r.id === id);
-      if (!request) {
-        throw new Error('Request not found');
-      }
-      return Promise.resolve({
-        ...request,
-        data: {
-          ...request.data,
-          [fieldId]: value
-        },
-        lastModified: new Date().toISOString()
-      });
-    }
-
-    return this.put<EndUserRequest>(`/requests/${id}/fields/${fieldId}`, { value });
+  async updateField(id: string, fieldId: string, value: any): Promise<EndUserRequest> {
+    return this.put<EndUserRequest>(`/onboarding/requests/${id}/fields/${fieldId}`, { value });
   }
 }
 

@@ -2,9 +2,104 @@ const OnboardingRequest = require('../models/OnboardingRequest');
 const RequestStatus = require('../models/RequestStatus');
 const RequestStatusHistory = require('../models/RequestStatusHistory');
 const User = require('../models/User');
+const Bank = require('../models/Bank');
+const Agency = require('../models/Agency');
 const { uploadFile } = require('../utils/fileUpload');
 const { validateRequest } = require('../utils/requestValidation');
 const { sendNotification } = require('../utils/notifications');
+
+exports.getRequests = async (req, res) => {
+  try {
+    const where = {};
+    
+    // Filter by role
+    if (req.user.role === 'agent_staff') {
+      where.agentId = req.user.id;
+    } else if (req.user.role === 'bank_staff' || req.user.role === 'bank_admin') {
+      where.bankId = req.user.bankId;
+    }
+
+    const requests = await OnboardingRequest.findAll({
+      where,
+      include: [
+        {
+          model: RequestStatus,
+          as: 'status',
+          attributes: ['code', 'description']
+        },
+        {
+          model: User,
+          as: 'agent',
+          attributes: ['firstName', 'lastName', 'email']
+        },
+        {
+          model: Bank,
+          as: 'bank',
+          attributes: ['name']
+        },
+        {
+          model: Agency,
+          as: 'agency',
+          attributes: ['name']
+        }
+      ],
+      order: [['updatedAt', 'DESC']]
+    });
+
+    const formattedRequests = requests.map(request => ({
+      id: request.id,
+      name: request.personalInfo?.firstName + ' ' + request.personalInfo?.surname,
+      email: request.personalInfo?.email,
+      companyName: request.businessInfo?.companyName,
+      status: request.status.description,
+      submissionDate: request.createdAt.toISOString().split('T')[0],
+      lastModified: request.updatedAt,
+      agentName: `${request.agent.firstName} ${request.agent.lastName}`,
+      agencyName: request.Agency,
+      bankName: request.Bank,
+      data: {
+        personal: request.personalInfo,
+        business: request.businessInfo,
+        shareholders: request.shareholders,
+        documents: request.documents
+      }
+    }));
+
+    res.json(formattedRequests);
+  } catch (error) {
+    console.error('Error fetching requests:', error);
+    res.status(500).json({ message: 'Failed to fetch requests' });
+  }
+};
+
+exports.getRequest = async (req, res) => {
+  try {
+    const request = await OnboardingRequest.findOne({
+      where: { id: req.params.id },
+      include: [
+        {
+          model: RequestStatus,
+          as: 'status',
+          attributes: ['code', 'description']
+        },
+        {
+          model: User,
+          as: 'agent',
+          attributes: ['firstName', 'lastName', 'email']
+        }
+      ]
+    });
+
+    if (!request) {
+      return res.status(404).json({ message: 'Request not found' });
+    }
+
+    res.json(request);
+  } catch (error) {
+    console.error('Error fetching request:', error);
+    res.status(500).json({ message: 'Failed to fetch request' });
+  }
+};
 
 exports.createRequest = async (req, res) => {
   try {
@@ -12,21 +107,13 @@ exports.createRequest = async (req, res) => {
 
     // Get initial status
     const initialStatus = await RequestStatus.findOne({
-      where: { 
-        code: 'REQSTATUS00030',
-        active: true
-      }
+      where: { code: 'REQSTATUS00030' }
     });
 
     if (!initialStatus) {
-      console.error('Initial status not found in database');
-      return res.status(500).json({ 
-        message: 'Initial status not found',
-        details: 'Please ensure request statuses are properly seeded'
-      });
+      return res.status(500).json({ message: 'Initial status not found' });
     }
 
-    // Create new request
     const request = await OnboardingRequest.create({
       personalInfo: personalInfo || {},
       businessInfo: businessInfo || {},
@@ -44,31 +131,10 @@ exports.createRequest = async (req, res) => {
       lastModifiedBy: req.user.id
     });
 
-    // Create initial status history entry
-    await RequestStatusHistory.create({
-      requestId: request.id,
-      statusId: initialStatus.id,
-      userId: req.user.id,
-      comment: 'Request created'
-    });
-
-    // Get request with status info
-    const requestWithStatus = await OnboardingRequest.findOne({
-      where: { id: request.id },
-      include: {
-        model: RequestStatus,
-        as: 'status',
-        attributes: ['id', 'code', 'description']
-      }
-    });
-
-    res.status(201).json(requestWithStatus);
+    res.status(201).json(request);
   } catch (error) {
     console.error('Error creating request:', error);
-    res.status(500).json({ 
-      message: 'Failed to create request',
-      error: error.message 
-    });
+    res.status(500).json({ message: 'Failed to create request' });
   }
 };
 
@@ -77,33 +143,14 @@ exports.updateRequest = async (req, res) => {
     const { id } = req.params;
     const { personalInfo, businessInfo, shareholders, documents } = req.body;
 
-    // Find request with status
     const request = await OnboardingRequest.findOne({
-      where: {
-        id,
-        agentId: req.user.id
-      },
-      include: {
-        model: RequestStatus,
-        as: 'status',
-        attributes: ['id', 'code', 'description']
-      }
+      where: { id, agentId: req.user.id }
     });
 
     if (!request) {
       return res.status(404).json({ message: 'Request not found' });
     }
 
-    // Only allow updates if request is in draft or correction status
-    const allowedStatuses = ['REQSTATUS00030', 'REQSTATUS00034', 'REQSTATUS00035'];
-    
-    if (!allowedStatuses.includes(request.status.code)) {
-      return res.status(403).json({ 
-        message: 'Request cannot be modified in its current status' 
-      });
-    }
-
-    // Update request with provided data
     const updates = {
       ...(personalInfo && { personalInfo }),
       ...(businessInfo && { businessInfo }),
@@ -113,74 +160,10 @@ exports.updateRequest = async (req, res) => {
     };
 
     await request.update(updates);
-
-    // Get updated request with status info
-    const updatedRequest = await OnboardingRequest.findOne({
-      where: { id },
-      include: {
-        model: RequestStatus,
-        as: 'status',
-        attributes: ['id', 'code', 'description']
-      }
-    });
-
-    res.json(updatedRequest);
-  } catch (error) {
-    console.error('Error updating request:', error);
-    res.status(500).json({ 
-      message: 'Failed to update request',
-      error: error.message 
-    });
-  }
-};
-
-exports.getRequest = async (req, res) => {
-  try {
-    const request = await OnboardingRequest.findOne({
-      where: { id: req.params.id },
-      include: {
-        model: RequestStatus,
-        as: 'status',
-        attributes: ['id', 'code', 'description']
-      }
-    });
-
-    if (!request) {
-      return res.status(404).json({ message: 'Request not found' });
-    }
-
     res.json(request);
   } catch (error) {
-    console.error('Error fetching request:', error);
-    res.status(500).json({ message: 'Failed to fetch request' });
-  }
-};
-
-exports.getRequests = async (req, res) => {
-  try {
-    const where = {};
-    
-    // Filter by role
-    if (req.user.role === 'agent_staff') {
-      where.agentId = req.user.id;
-    } else if (req.user.role === 'bank_staff' || req.user.role === 'bank_admin') {
-      where.bankId = req.user.bankId;
-    }
-
-    const requests = await OnboardingRequest.findAll({
-      where,
-      include: {
-        model: RequestStatus,
-        as: 'status',
-        attributes: ['id', 'code', 'description']
-      },
-      order: [['updatedAt', 'DESC']]
-    });
-
-    res.json(requests);
-  } catch (error) {
-    console.error('Error fetching requests:', error);
-    res.status(500).json({ message: 'Failed to fetch requests' });
+    console.error('Error updating request:', error);
+    res.status(500).json({ message: 'Failed to update request' });
   }
 };
 
@@ -194,17 +177,14 @@ exports.uploadDocument = async (req, res) => {
     }
 
     const request = await OnboardingRequest.findOne({
-      where: { 
-        id: req.params.id,
-        agentId: req.user.id
-      }
+      where: { id: req.params.id }
     });
 
     if (!request) {
       return res.status(404).json({ message: 'Request not found' });
     }
 
-    // Upload file and get URL
+    // Upload file
     const uploadResult = await uploadFile(file);
 
     // Update request documents
@@ -225,48 +205,21 @@ exports.uploadDocument = async (req, res) => {
       lastModifiedBy: req.user.id
     });
 
-    res.json({ 
-      url: uploadResult.url,
-      originalName: file.originalname,
-      mimeType: file.mimetype,
-      size: file.size
-    });
+    res.json(uploadResult);
   } catch (error) {
     console.error('Error uploading document:', error);
     res.status(500).json({ message: 'Failed to upload document' });
   }
 };
+
 exports.submitRequest = async (req, res) => {
   try {
     const request = await OnboardingRequest.findOne({
-      where: { 
-        id: req.params.id,
-        agentId: req.user.id
-      },
-      include: {
-        model: RequestStatus,
-        as: 'status',
-        attributes: ['id', 'code', 'description']
-      }
+      where: { id: req.params.id, agentId: req.user.id }
     });
 
     if (!request) {
       return res.status(404).json({ message: 'Request not found' });
-    }
-
-    // Validate complete request data
-    const validationResult = await validateRequest({
-      personalInfo: request.personalInfo,
-      businessInfo: request.businessInfo,
-      shareholders: request.shareholders,
-      documents: request.documents
-    }, true);
-
-    if (!validationResult.isValid) {
-      return res.status(400).json({
-        message: 'Request validation failed',
-        errors: validationResult.errors
-      });
     }
 
     // Get submitted status
@@ -292,30 +245,68 @@ exports.submitRequest = async (req, res) => {
       comment: 'Request submitted for review'
     });
 
-    // Send notifications
-    await sendNotification('request_submitted', {
-      requestId: request.id,
-      bankId: request.bankId,
-      agencyId: request.agencyId
-    });
-
-    // Get updated request with status
-    const updatedRequest = await OnboardingRequest.findOne({
-      where: { id: request.id },
-      include: {
-        model: RequestStatus,
-        as: 'status',
-        attributes: ['id', 'code', 'description']
-      }
-    });
-
-    res.json(updatedRequest);
+    res.json(request);
   } catch (error) {
     console.error('Error submitting request:', error);
     res.status(500).json({ message: 'Failed to submit request' });
   }
 };
 
+exports.addComment = async (req, res) => {
+  try {
+    const { comment } = req.body;
+    const request = await OnboardingRequest.findByPk(req.params.id);
 
+    if (!request) {
+      return res.status(404).json({ message: 'Request not found' });
+    }
 
+    await RequestStatusHistory.create({
+      requestId: request.id,
+      statusId: request.statusId,
+      userId: req.user.id,
+      comment
+    });
 
+    res.json({ message: 'Comment added successfully' });
+  } catch (error) {
+    console.error('Error adding comment:', error);
+    res.status(500).json({ message: 'Failed to add comment' });
+  }
+};
+
+exports.updateRequestStatus = async (req, res) => {
+  try {
+    const { status, comment } = req.body;
+    const request = await OnboardingRequest.findByPk(req.params.id);
+
+    if (!request) {
+      return res.status(404).json({ message: 'Request not found' });
+    }
+
+    const newStatus = await RequestStatus.findOne({
+      where: { code: status }
+    });
+
+    if (!newStatus) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+
+    await request.update({
+      statusId: newStatus.id,
+      lastModifiedBy: req.user.id
+    });
+
+    await RequestStatusHistory.create({
+      requestId: request.id,
+      statusId: newStatus.id,
+      userId: req.user.id,
+      comment
+    });
+
+    res.json(request);
+  } catch (error) {
+    console.error('Error updating request status:', error);
+    res.status(500).json({ message: 'Failed to update request status' });
+  }
+};

@@ -53,8 +53,7 @@ class OnboardingService extends BaseService {
     formData.append('file', file);
     formData.append('type', type);
 
-    // Remove the extra 'api' from the URL
-    const response = await fetch(`${APP_CONFIG.API_BASE_URL}/onboarding/requests/${requestId}/documents`, {
+    const response = await fetch(`${APP_CONFIG.API_BASE_URL}/api/onboarding/requests/${requestId}/documents`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`,

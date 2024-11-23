@@ -5,6 +5,11 @@ export const API_ENDPOINTS = {
     REFRESH_TOKEN: '/auth/refresh-token',
     VALIDATE_TOKEN: '/auth/validate-token'
   },
+  ONBOARDING: {
+    REQUESTS: '/onboarding/requests',
+    DOCUMENTS: '/onboarding/documents',
+    VALIDATIONS: '/onboarding/validations'
+  },
   SUPER_ADMIN: {
     BANKS: '/admin/banks',
     BANK_STAFF: '/admin/bank-staff',
@@ -23,10 +28,5 @@ export const API_ENDPOINTS = {
     CUSTOMERS: '/agency/customers',
     TRANSACTIONS: '/agency/transactions',
     STATISTICS: '/agency/statistics'
-  },
-  ONBOARDING: {
-    REQUESTS: '/onboarding/requests',
-    DOCUMENTS: '/onboarding/documents',
-    VALIDATIONS: '/onboarding/validations'
   }
 };

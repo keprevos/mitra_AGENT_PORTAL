@@ -1,13 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Check, AlertTriangle } from 'lucide-react';
-import { useOnboarding } from '../OnboardingContext';
+import { useOnboarding } from '../../../contexts/OnboardingContext';
 import { RequestStatus } from '../../../types/onboarding';
 import toast from 'react-hot-toast';
 
 export function ReviewStep() {
   const { state, submitRequest, prevStep } = useOnboarding();
-  const [termsAccepted, setTermsAccepted] = React.useState(false);
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {
     if (!termsAccepted) {
@@ -26,6 +26,27 @@ export function ReviewStep() {
       setIsSubmitting(false);
     }
   };
+
+  // Ensure all required data is present
+  if (!state.personalInfo || !state.businessInfo || !state.shareholders.length) {
+    return (
+      <div className="text-center py-8">
+        <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-gray-900 mb-2">
+          Missing Required Information
+        </h3>
+        <p className="text-gray-500">
+          Please complete all previous steps before proceeding to review.
+        </p>
+        <button
+          onClick={prevStep}
+          className="mt-4 inline-flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+        >
+          Go Back
+        </button>
+      </div>
+    );
+  }
 
   const sections = [
     {
@@ -94,10 +115,10 @@ export function ReviewStep() {
       title: 'Documents',
       data: state.documents,
       fields: [
-        { label: 'Proof of Residence', key: 'proofOfResidence', format: (val: File) => val?.name },
-        { label: 'Identity Document', key: 'identityDocument', format: (val: File) => val?.name },
-        { label: 'Signature', key: 'signature', format: (val: File) => val?.name },
-        { label: 'Bank Details', key: 'bankDetails', format: (val: File) => val?.name }
+        { label: 'Proof of Residence', key: 'proofOfResidence', format: (files: string[]) => files.length ? 'Uploaded' : 'Not uploaded' },
+        { label: 'Identity Document', key: 'identityDocument', format: (files: string[]) => files.length ? 'Uploaded' : 'Not uploaded' },
+        { label: 'Signature', key: 'signature', format: (files: string[]) => files.length ? 'Uploaded' : 'Not uploaded' },
+        { label: 'Bank Details', key: 'bankDetails', format: (files: string[]) => files.length ? 'Uploaded' : 'Not uploaded' }
       ]
     }
   ];

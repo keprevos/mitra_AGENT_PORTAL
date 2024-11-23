@@ -9,19 +9,28 @@ const OnboardingRequest = sequelize.define('OnboardingRequest', {
   },
   personalInfo: {
     type: DataTypes.JSON,
-    allowNull: false
+    allowNull: false,
+    defaultValue: {}
   },
   businessInfo: {
     type: DataTypes.JSON,
-    allowNull: false
+    allowNull: false,
+    defaultValue: {}
   },
   shareholders: {
     type: DataTypes.JSON,
-    allowNull: false
+    allowNull: false,
+    defaultValue: []
   },
   documents: {
     type: DataTypes.JSON,
-    allowNull: false
+    allowNull: false,
+    defaultValue: {
+      proofOfResidence: [],
+      identityDocument: [],
+      signature: [],
+      bankDetails: []
+    }
   },
   statusId: {
     type: DataTypes.INTEGER,
@@ -80,5 +89,37 @@ const OnboardingRequest = sequelize.define('OnboardingRequest', {
     }
   }
 });
+
+// Define associations
+OnboardingRequest.associate = (models) => {
+  OnboardingRequest.belongsTo(models.RequestStatus, { 
+    foreignKey: 'statusId',
+    as: 'status'
+  });
+  OnboardingRequest.belongsTo(models.User, { 
+    foreignKey: 'agentId',
+    as: 'agent'
+  });
+  OnboardingRequest.belongsTo(models.Bank, {
+    foreignKey: 'bankId',
+    as: 'bank'
+  });
+  OnboardingRequest.belongsTo(models.Agency, {
+    foreignKey: 'agencyId',
+    as: 'agency'
+  });
+  OnboardingRequest.belongsTo(models.User, { 
+    foreignKey: 'validatedBy',
+    as: 'validator'
+  });
+  OnboardingRequest.belongsTo(models.User, { 
+    foreignKey: 'lastModifiedBy',
+    as: 'modifier'
+  });
+  OnboardingRequest.hasMany(models.RequestStatusHistory, {
+    foreignKey: 'requestId',
+    as: 'history'
+  });
+};
 
 module.exports = OnboardingRequest;
