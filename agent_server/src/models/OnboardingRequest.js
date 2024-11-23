@@ -79,41 +79,6 @@ const OnboardingRequest = sequelize.define('OnboardingRequest', {
       key: 'id'
     }
   }
-}, {
-  defaultScope: {
-    include: [{
-      model: sequelize.models.RequestStatus,
-      as: 'status'
-    }]
-  }
 });
-
-// Define associations
-OnboardingRequest.associate = (models) => {
-  OnboardingRequest.belongsTo(models.RequestStatus, { 
-    foreignKey: 'statusId',
-    as: 'status'
-  });
-  OnboardingRequest.belongsTo(models.User, { 
-    foreignKey: 'agentId',
-    as: 'agent'
-  });
-  OnboardingRequest.belongsTo(models.Bank, { 
-    foreignKey: 'bankId',
-    as: 'bank'
-  });
-  OnboardingRequest.belongsTo(models.Agency, { 
-    foreignKey: 'agencyId',
-    as: 'agency'
-  });
-  OnboardingRequest.belongsTo(models.User, { 
-    foreignKey: 'validatedBy',
-    as: 'validator'
-  });
-  OnboardingRequest.belongsTo(models.User, { 
-    foreignKey: 'lastModifiedBy',
-    as: 'modifier'
-  });
-};
 
 module.exports = OnboardingRequest;

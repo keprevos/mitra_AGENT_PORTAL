@@ -47,12 +47,11 @@ export function EndUserManagement() {
     setIsEditing(false);
   };
 
-  const handleCloseWizard = async () => {
+  const handleCloseWizard = () => {
     setShowWizard(false);
     setSelectedRequest(null);
     setIsEditing(false);
-    // Refresh the list after closing wizard
-    await fetchRequests();
+    fetchRequests();
   };
 
   const filteredRequests = requests.filter(request => {
@@ -66,7 +65,7 @@ export function EndUserManagement() {
     return matchesSearch && matchesStatus;
   });
 
-  // Render OnboardingWizard with proper provider
+  // Show OnboardingWizard when creating new request or editing existing one
   if (showWizard || (selectedRequest && isEditing)) {
     return (
       <OnboardingWizard 
@@ -77,6 +76,7 @@ export function EndUserManagement() {
     );
   }
 
+  // Show request details when viewing
   if (selectedRequest && !isEditing) {
     return (
       <div className="space-y-6">
@@ -96,6 +96,7 @@ export function EndUserManagement() {
           </button>
         </div>
 
+        {/* Request Details */}
         <div className="bg-white shadow overflow-hidden sm:rounded-lg">
           <div className="px-4 py-5 sm:px-6">
             <h3 className="text-lg leading-6 font-medium text-gray-900">

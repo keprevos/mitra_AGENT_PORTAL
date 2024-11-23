@@ -1,13 +1,11 @@
-import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import React from 'react';
+import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
 import { useOnboarding } from '../../contexts/OnboardingContext';
 import { PersonalInfoStep } from './steps/PersonalInfoStep';
 import { BusinessInfoStep } from './steps/BusinessInfoStep';
 import { ShareholdersStep } from './steps/ShareholdersStep';
 import { DocumentsStep } from './steps/DocumentsStep';
 import { ReviewStep } from './steps/ReviewStep';
-import { RequestStatus } from '../../types/onboarding';
 
 const steps = [
   { id: 'personal', title: 'Personal Information', component: PersonalInfoStep },
@@ -23,20 +21,40 @@ interface OnboardingWizardContentProps {
 
 export function OnboardingWizardContent({ onClose }: OnboardingWizardContentProps) {
   const { 
-    state: { currentStep, isSubmitting, status },
+    state: { currentStep, isSubmitting, isLoading, error, lastSaved },
     nextStep,
     prevStep,
-    saveProgress
+    resetError
   } = useOnboarding();
 
-  const navigate = useNavigate();
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-indigo-600 mx-auto" />
+          <p className="mt-2 text-sm text-gray-500">Loading your request...</p>
+        </div>
+      </div>
+    );
+  }
 
-  useEffect(() => {
-    // Auto-save progress when changing steps
-    if (currentStep > 0 && status === RequestStatus.DRAFT) {
-      saveProgress();
-    }
-  }, [currentStep, status, saveProgress]);
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="bg-red-100 text-red-700 p-4 rounded-lg">
+            <p>{error}</p>
+            <button
+              onClick={resetError}
+              className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const CurrentStepComponent = steps[currentStep].component;
 
@@ -78,6 +96,13 @@ export function OnboardingWizardContent({ onClose }: OnboardingWizardContentProp
           </ol>
         </nav>
 
+        {/* Last Saved Indicator */}
+        {lastSaved && (
+          <div className="mb-4 text-sm text-gray-500 text-right">
+            Last saved: {new Date(lastSaved).toLocaleTimeString()}
+          </div>
+        )}
+
         {/* Current Step */}
         <div className="bg-white shadow rounded-lg p-8">
           <CurrentStepComponent />
@@ -101,8 +126,17 @@ export function OnboardingWizardContent({ onClose }: OnboardingWizardContentProp
               disabled={isSubmitting}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
             >
-              Next
-              <ArrowRight className="h-4 w-4 ml-2" />
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  Next
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </>
+              )}
             </button>
           )}
         </div>

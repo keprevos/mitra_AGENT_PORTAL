@@ -8,6 +8,7 @@ import {
   Documents,
   RequestStatus
 } from '../../types/onboarding';
+import { APP_CONFIG } from '../../config/app.config';
 
 class OnboardingService extends BaseService {
   async createRequest(data: {
@@ -16,7 +17,7 @@ class OnboardingService extends BaseService {
     shareholders?: Shareholder[];
     documents?: Documents;
   }): Promise<OnboardingRequest> {
-    return this.post<OnboardingRequest>(API_ENDPOINTS.ONBOARDING.REQUESTS, data);
+    return this.post<OnboardingRequest>(`${API_ENDPOINTS.ONBOARDING.REQUESTS}`, data);
   }
 
   async updateRequest(id: string, data: Partial<OnboardingRequest>): Promise<OnboardingRequest> {
@@ -25,6 +26,10 @@ class OnboardingService extends BaseService {
 
   async getRequest(id: string): Promise<OnboardingRequest> {
     return this.get<OnboardingRequest>(`${API_ENDPOINTS.ONBOARDING.REQUESTS}/${id}`);
+  }
+
+  async getRequests(): Promise<OnboardingRequest[]> {
+    return this.get<OnboardingRequest[]>(`${API_ENDPOINTS.ONBOARDING.REQUESTS}`);
   }
 
   async submitForReview(id: string): Promise<OnboardingRequest> {
@@ -48,15 +53,21 @@ class OnboardingService extends BaseService {
     formData.append('file', file);
     formData.append('type', type);
 
-    return this.post(
-      `${API_ENDPOINTS.ONBOARDING.REQUESTS}/${requestId}/documents`,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      }
-    );
+    // Remove the extra 'api' from the URL
+    const response = await fetch(`${APP_CONFIG.API_BASE_URL}/onboarding/requests/${requestId}/documents`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+      },
+      body: formData
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Upload failed');
+    }
+
+    return response.json();
   }
 
   async getRequestHistory(id: string): Promise<OnboardingRequest['history']> {

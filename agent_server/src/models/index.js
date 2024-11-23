@@ -47,13 +47,19 @@ Role.belongsToMany(Permission, {
   foreignKey: 'roleId',
   as: 'permissions'
 });
+
 Permission.belongsToMany(Role, {
   through: RolePermission,
   foreignKey: 'permissionId',
   as: 'roles'
 });
 
-// Export models
+// Initialize Sequelize
+const sequelize = config.use_env_variable 
+  ? new Sequelize(process.env[config.use_env_variable], config) 
+  : new Sequelize(config.database, config.username, config.password, config);
+
+// Export models and sequelize instance
 module.exports = {
   User,
   Role,
@@ -64,5 +70,6 @@ module.exports = {
   RequestStatusHistory,
   Permission,
   RolePermission,
-  sequelize: config.use_env_variable ? new Sequelize(process.env[config.use_env_variable], config) : new Sequelize(config.database, config.username, config.password, config)
+  sequelize,
+  Sequelize
 };

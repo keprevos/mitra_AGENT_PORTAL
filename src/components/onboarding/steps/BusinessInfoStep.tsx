@@ -2,7 +2,7 @@ import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useOnboarding } from '../OnboardingContext';
+import { useOnboarding } from '../../../contexts/OnboardingContext';
 
 const businessInfoSchema = z.object({
   legalForm: z.string().min(1, 'Legal form is required'),
@@ -10,7 +10,9 @@ const businessInfoSchema = z.object({
     .length(14, 'SIRET must be exactly 14 digits')
     .regex(/^\d+$/, 'SIRET must contain only numbers'),
   companyName: z.string().min(2, 'Company name is required'),
-  industryCode: z.string().optional(),
+  industryCode: z.string()
+    .regex(/^\d{4}[A-Z]$/, 'Industry code must be in format: 4 digits followed by 1 letter (e.g., 6202A)')
+    .optional(),
   brandName: z.string().optional(),
   address: z.object({
     street: z.string().min(5, 'Street address is required'),
@@ -51,9 +53,9 @@ export function BusinessInfoStep() {
     defaultValues: state.businessInfo
   });
 
-  const onSubmit = (data: BusinessInfoInputs) => {
+  const onSubmit = async (data: BusinessInfoInputs) => {
     updateBusinessInfo(data);
-    nextStep();
+    await nextStep();
   };
 
   return (
@@ -62,13 +64,13 @@ export function BusinessInfoStep() {
         {/* Legal Form */}
         <div className="sm:col-span-3">
           <label className="block text-sm font-medium text-gray-700">
-            Forme juridique *
+            Legal Form *
           </label>
           <select
             {...register('legalForm')}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
           >
-            <option value="">Sélectionnez une forme juridique</option>
+            <option value="">Select a legal form</option>
             {LEGAL_FORMS.map(form => (
               <option key={form.value} value={form.value}>
                 {form.label}
@@ -100,7 +102,7 @@ export function BusinessInfoStep() {
         {/* Company Name */}
         <div className="sm:col-span-4">
           <label className="block text-sm font-medium text-gray-700">
-            Dénomination / raison sociale *
+            Company Name *
           </label>
           <input
             type="text"
@@ -115,13 +117,13 @@ export function BusinessInfoStep() {
         {/* Industry Code */}
         <div className="sm:col-span-2">
           <label className="block text-sm font-medium text-gray-700">
-            Code APE *
+            Industry Code (APE) *
           </label>
           <input
             type="text"
             {...register('industryCode')}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-            placeholder="ex: 6202A"
+            placeholder="6202A"
           />
           {errors.industryCode && (
             <p className="mt-1 text-sm text-red-600">{errors.industryCode.message}</p>
@@ -131,7 +133,7 @@ export function BusinessInfoStep() {
         {/* Brand Name */}
         <div className="sm:col-span-4">
           <label className="block text-sm font-medium text-gray-700">
-            Enseigne
+            Brand Name
           </label>
           <input
             type="text"
@@ -142,14 +144,14 @@ export function BusinessInfoStep() {
 
         {/* Company Address */}
         <div className="sm:col-span-6">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Adresse de l'entreprise *
+          <label className="block text-sm font-medium text-gray-700">
+            Company Address *
           </label>
-          <div className="space-y-4">
+          <div className="mt-1 space-y-4">
             <input
               type="text"
               {...register('address.street')}
-              placeholder="Rue"
+              placeholder="Street"
               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             />
             {errors.address?.street && (
@@ -161,7 +163,7 @@ export function BusinessInfoStep() {
                 <input
                   type="text"
                   {...register('address.city')}
-                  placeholder="Ville"
+                  placeholder="City"
                   className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                 />
                 {errors.address?.city && (
@@ -173,7 +175,7 @@ export function BusinessInfoStep() {
                 <input
                   type="text"
                   {...register('address.postalCode')}
-                  placeholder="Code postal"
+                  placeholder="Postal Code"
                   className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                 />
                 {errors.address?.postalCode && (
@@ -185,7 +187,7 @@ export function BusinessInfoStep() {
             <input
               type="text"
               {...register('address.country')}
-              placeholder="Pays"
+              placeholder="Country"
               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             />
             {errors.address?.country && (
@@ -197,7 +199,7 @@ export function BusinessInfoStep() {
         {/* Activity Description */}
         <div className="sm:col-span-6">
           <label className="block text-sm font-medium text-gray-700">
-            Description de votre activité *
+            Activity Description *
           </label>
           <textarea
             {...register('activityDescription')}
@@ -212,7 +214,7 @@ export function BusinessInfoStep() {
         {/* Client Location */}
         <div className="sm:col-span-6">
           <label className="block text-sm font-medium text-gray-700">
-            Où se situent vos clients et / ou fournisseurs ? *
+            Client Location *
           </label>
           <input
             type="text"
@@ -227,7 +229,7 @@ export function BusinessInfoStep() {
         {/* Client Types */}
         <div className="sm:col-span-6">
           <label className="block text-sm font-medium text-gray-700">
-            Qui sont vos clients et / ou fournisseurs ? *
+            Client Types *
           </label>
           <input
             type="text"
@@ -242,7 +244,7 @@ export function BusinessInfoStep() {
         {/* Last Turnover */}
         <div className="sm:col-span-4">
           <label className="block text-sm font-medium text-gray-700">
-            Montant de votre dernier chiffre d'affaires
+            Last Annual Turnover
           </label>
           <div className="mt-1 relative rounded-md shadow-sm">
             <input
@@ -269,9 +271,9 @@ export function BusinessInfoStep() {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
         >
-          Continue
+          {isSubmitting ? 'Saving...' : 'Continue'}
         </button>
       </div>
     </form>

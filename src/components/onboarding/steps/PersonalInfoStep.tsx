@@ -2,7 +2,7 @@ import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useOnboarding } from '../OnboardingContext';
+import { useOnboarding } from '../../../contexts/OnboardingContext';
 
 const personalInfoSchema = z.object({
   title: z.enum(['madame', 'monsieur'], {
@@ -51,7 +51,7 @@ export function PersonalInfoStep() {
       {/* Title Selection */}
       <div>
         <label className="block text-sm font-medium text-gray-700">
-          Civilité *
+          Title *
         </label>
         <div className="mt-2 space-x-4">
           <label className="inline-flex items-center">
@@ -82,7 +82,7 @@ export function PersonalInfoStep() {
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
         <div>
           <label className="block text-sm font-medium text-gray-700">
-            Nom d'usage *
+            Surname *
           </label>
           <input
             type="text"
@@ -96,7 +96,7 @@ export function PersonalInfoStep() {
 
         <div>
           <label className="block text-sm font-medium text-gray-700">
-            Prénom *
+            First Name *
           </label>
           <input
             type="text"
@@ -110,7 +110,7 @@ export function PersonalInfoStep() {
 
         <div>
           <label className="block text-sm font-medium text-gray-700">
-            Nom de naissance
+            Maiden Name
           </label>
           <input
             type="text"
@@ -138,7 +138,7 @@ export function PersonalInfoStep() {
 
         <div>
           <label className="block text-sm font-medium text-gray-700">
-            Téléphone mobile *
+            Mobile Phone *
           </label>
           <input
             type="tel"
@@ -154,13 +154,13 @@ export function PersonalInfoStep() {
       {/* Address */}
       <div className="space-y-4">
         <label className="block text-sm font-medium text-gray-700">
-          Adresse postale *
+          Address *
         </label>
         
         <input
           type="text"
           {...register('address.street')}
-          placeholder="Rue"
+          placeholder="Street"
           className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
         />
         {errors.address?.street && (
@@ -172,7 +172,7 @@ export function PersonalInfoStep() {
             <input
               type="text"
               {...register('address.city')}
-              placeholder="Ville"
+              placeholder="City"
               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             />
             {errors.address?.city && (
@@ -184,7 +184,7 @@ export function PersonalInfoStep() {
             <input
               type="text"
               {...register('address.postalCode')}
-              placeholder="Code postal"
+              placeholder="Postal Code"
               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             />
             {errors.address?.postalCode && (
@@ -196,7 +196,7 @@ export function PersonalInfoStep() {
         <input
           type="text"
           {...register('address.country')}
-          placeholder="Pays"
+          placeholder="Country"
           className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
         />
         {errors.address?.country && (
@@ -208,7 +208,7 @@ export function PersonalInfoStep() {
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
         <div>
           <label className="block text-sm font-medium text-gray-700">
-            Date de naissance *
+            Birth Date *
           </label>
           <input
             type="date"
@@ -222,7 +222,7 @@ export function PersonalInfoStep() {
 
         <div>
           <label className="block text-sm font-medium text-gray-700">
-            Lieu de naissance *
+            Birth Place *
           </label>
           <input
             type="text"
@@ -236,7 +236,7 @@ export function PersonalInfoStep() {
 
         <div>
           <label className="block text-sm font-medium text-gray-700">
-            Pays de naissance *
+            Birth Country *
           </label>
           <input
             type="text"
@@ -253,7 +253,7 @@ export function PersonalInfoStep() {
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
         <div>
           <label className="block text-sm font-medium text-gray-700">
-            Nationalité *
+            Nationality *
           </label>
           <input
             type="text"
@@ -267,7 +267,7 @@ export function PersonalInfoStep() {
 
         <div>
           <label className="block text-sm font-medium text-gray-700">
-            Pays de résidence fiscale *
+            Tax Residence Country *
           </label>
           <input
             type="text"
@@ -291,10 +291,10 @@ export function PersonalInfoStep() {
         </div>
         <div className="ml-3 text-sm">
           <label className="font-medium text-gray-700">
-            Ressortissant américain
+            US Citizen
           </label>
           <p className="text-gray-500">
-            Cochez si vous êtes citoyen des États-Unis
+            Check if you are a United States citizen
           </p>
         </div>
       </div>

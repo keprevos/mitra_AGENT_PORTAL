@@ -1,7 +1,4 @@
 import React, { useCallback, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { Upload, X, Check, AlertTriangle, Eye } from 'lucide-react';
 import { useOnboarding } from '../../../contexts/OnboardingContext';
 import { onboardingService } from '../../../api/services/onboarding.service';
@@ -12,16 +9,33 @@ const ACCEPTED_FILE_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
 
 interface FileUploadProps {
   label: string;
-  name: string;
+  type: string;
   files: string[];
   onUpload: (file: File) => Promise<void>;
   onRemove: (url: string) => void;
   error?: string;
 }
 
-function FileUpload({ label, name, files, onUpload, onRemove, error }: FileUploadProps) {
+function FileUpload({ label, type, files, onUpload, onRemove, error }: FileUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const validateFile = (file: File): string | null => {
+    if (!file) {
+      return 'No file provided';
+    }
+
+    if (!ACCEPTED_FILE_TYPES.includes(file.type)) {
+      return 'Invalid file type. Only JPEG, PNG and PDF files are allowed.';
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      return 'File is too large. Maximum size is 5MB.';
+    }
+
+    return null;
+  };
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -47,19 +61,21 @@ function FileUpload({ label, name, files, onUpload, onRemove, error }: FileUploa
   }, []);
 
   const handleFileUpload = async (file: File) => {
-    if (!ACCEPTED_FILE_TYPES.includes(file.type)) {
-      toast.error('Invalid file type. Only JPEG, PNG and PDF files are allowed.');
-      return;
-    }
-
-    if (file.size > MAX_FILE_SIZE) {
-      toast.error('File is too large. Maximum size is 5MB.');
+    const validationError = validateFile(file);
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
 
     setIsUploading(true);
     try {
       await onUpload(file);
+      toast.success('File uploaded successfully');
+      
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     } catch (error) {
       console.error('Upload error:', error);
       toast.error('Failed to upload file');
@@ -73,10 +89,6 @@ function FileUpload({ label, name, files, onUpload, onRemove, error }: FileUploa
     if (file) {
       await handleFileUpload(file);
     }
-  };
-
-  const handlePreview = (url: string) => {
-    window.open(url, '_blank');
   };
 
   return (
@@ -104,13 +116,13 @@ function FileUpload({ label, name, files, onUpload, onRemove, error }: FileUploa
                 <div className="flex items-center">
                   <Check className="h-5 w-5 text-green-500 mr-2" />
                   <span className="text-sm text-gray-600">
-                    {url.split('/').pop()}
+                    {decodeURIComponent(url.split('/').pop() || '')}
                   </span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <button
                     type="button"
-                    onClick={() => handlePreview(url)}
+                    onClick={() => window.open(url, '_blank')}
                     className="text-indigo-600 hover:text-indigo-700"
                   >
                     <Eye className="h-5 w-5" />
@@ -130,6 +142,7 @@ function FileUpload({ label, name, files, onUpload, onRemove, error }: FileUploa
                 <Upload className="h-4 w-4 mr-1" />
                 Upload another file
                 <input
+                  ref={fileInputRef}
                   type="file"
                   className="hidden"
                   accept=".jpg,.jpeg,.png,.pdf"
@@ -147,6 +160,7 @@ function FileUpload({ label, name, files, onUpload, onRemove, error }: FileUploa
                 <span className="relative cursor-pointer rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
                   Upload a file
                   <input
+                    ref={fileInputRef}
                     type="file"
                     className="hidden"
                     accept=".jpg,.jpeg,.png,.pdf"
@@ -181,15 +195,28 @@ function FileUpload({ label, name, files, onUpload, onRemove, error }: FileUploa
 export function DocumentsStep() {
   const { state, updateDocuments, nextStep, prevStep } = useOnboarding();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleUpload = async (type: string, file: File) => {
+    if (!state.requestId) {
+      toast.error('No request ID found');
+      return;
+    }
+
     try {
-      const { url } = await onboardingService.uploadDocument(state.requestId!, type, file);
+      const response = await onboardingService.uploadDocument(state.requestId, type, file);
       const newDocuments = {
         ...state.documents,
-        [type]: [...(state.documents[type] || []), url]
+        [type]: [...(state.documents[type] || []), response.url]
       };
       updateDocuments(newDocuments);
+      
+      // Clear any error for this document type
+      setErrors(prev => {
+        const updated = { ...prev };
+        delete updated[type];
+        return updated;
+      });
     } catch (error) {
       console.error('Upload error:', error);
       throw error;
@@ -204,15 +231,28 @@ export function DocumentsStep() {
     updateDocuments(newDocuments);
   };
 
-  const handleNext = async () => {
-    // Validate that at least one document of each type is uploaded
-    const requiredDocs = ['proofOfResidence', 'identityDocument', 'signature', 'bankDetails'];
-    const missingDocs = requiredDocs.filter(type => 
-      !state.documents[type] || state.documents[type].length === 0
-    );
+  const validateDocuments = (): boolean => {
+    const newErrors: Record<string, string> = {};
+    const requiredDocs = [
+      { type: 'proofOfResidence', label: 'Proof of Residence' },
+      { type: 'identityDocument', label: 'Identity Document' },
+      { type: 'signature', label: 'Signature' },
+      { type: 'bankDetails', label: 'Bank Details' }
+    ];
 
-    if (missingDocs.length > 0) {
-      toast.error(`Please upload all required documents: ${missingDocs.join(', ')}`);
+    requiredDocs.forEach(({ type, label }) => {
+      if (!state.documents[type] || state.documents[type].length === 0) {
+        newErrors[type] = `${label} is required`;
+      }
+    });
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleNext = async () => {
+    if (!validateDocuments()) {
+      toast.error('Please upload all required documents');
       return;
     }
 
@@ -228,34 +268,38 @@ export function DocumentsStep() {
     <div className="space-y-6">
       <FileUpload
         label="Proof of Residence"
-        name="proofOfResidence"
+        type="proofOfResidence"
         files={state.documents.proofOfResidence || []}
         onUpload={(file) => handleUpload('proofOfResidence', file)}
         onRemove={(url) => handleRemove('proofOfResidence', url)}
+        error={errors.proofOfResidence}
       />
 
       <FileUpload
         label="Identity Document"
-        name="identityDocument"
+        type="identityDocument"
         files={state.documents.identityDocument || []}
         onUpload={(file) => handleUpload('identityDocument', file)}
         onRemove={(url) => handleRemove('identityDocument', url)}
+        error={errors.identityDocument}
       />
 
       <FileUpload
         label="Signature"
-        name="signature"
+        type="signature"
         files={state.documents.signature || []}
         onUpload={(file) => handleUpload('signature', file)}
         onRemove={(url) => handleRemove('signature', url)}
+        error={errors.signature}
       />
 
       <FileUpload
         label="Bank Details"
-        name="bankDetails"
+        type="bankDetails"
         files={state.documents.bankDetails || []}
         onUpload={(file) => handleUpload('bankDetails', file)}
         onRemove={(url) => handleRemove('bankDetails', url)}
+        error={errors.bankDetails}
       />
 
       <div className="flex justify-between pt-5">

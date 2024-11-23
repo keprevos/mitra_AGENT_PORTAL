@@ -8,11 +8,19 @@ const { onboardingSchemas } = require('../validators/onboardingSchemas');
  */
 exports.validateRequest = async (request, isSubmission = false) => {
   try {
-    const schema = isSubmission ? 
-      onboardingSchemas.submitRequest : 
-      onboardingSchemas.createRequest;
+    // Only validate required fields for final submission
+    if (!isSubmission) {
+      return {
+        isValid: true,
+        errors: []
+      };
+    }
 
-    const { error } = schema.validate(request, { abortEarly: false });
+    // For final submission, validate all required fields
+    const { error } = onboardingSchemas.submitRequest.validate(request, {
+      abortEarly: false,
+      allowUnknown: true
+    });
 
     if (error) {
       return {

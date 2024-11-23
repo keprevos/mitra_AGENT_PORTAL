@@ -1,10 +1,10 @@
 const Joi = require('joi');
 
 const documentsSchema = Joi.object({
-  proofOfResidence: Joi.array().items(Joi.string().uri()).default([]),
-  identityDocument: Joi.array().items(Joi.string().uri()).default([]),
-  signature: Joi.array().items(Joi.string().uri()).default([]),
-  bankDetails: Joi.array().items(Joi.string().uri()).default([])
+  proofOfResidence: Joi.array().items(Joi.string().required()).default([]),
+  identityDocument: Joi.array().items(Joi.string().required()).default([]),
+  signature: Joi.array().items(Joi.string().required()).default([]),
+  bankDetails: Joi.array().items(Joi.string().required()).default([])
 }).default({
   proofOfResidence: [],
   identityDocument: [],
@@ -125,7 +125,25 @@ exports.onboardingSchemas = {
   submitRequest: Joi.object({
     personalInfo: personalInfoSchema.required(),
     businessInfo: businessInfoSchema.required(),
-    shareholders: Joi.array().items(shareholderSchema).min(1).required(),
+    shareholders: Joi.array().items(shareholderSchema).min(1).required()
+      .custom((value, helpers) => {
+        const total = value.reduce((sum, shareholder) => sum + shareholder.ownershipPercentage, 0);
+        if (Math.abs(total - 100) > 0.01) {
+          return helpers.error('any.invalid', { message: 'Total ownership percentage must equal 100%' });
+        }
+        return value;
+      }),
     documents: documentsSchema.required()
+      .custom((value, helpers) => {
+        const requiredDocs = ['proofOfResidence', 'identityDocument', 'signature', 'bankDetails'];
+        const missingDocs = requiredDocs.filter(type => !value[type] || value[type].length === 0);
+        
+        if (missingDocs.length > 0) {
+          return helpers.error('any.invalid', { 
+            message: `Missing required documents: ${missingDocs.join(', ')}`
+          });
+        }
+        return value;
+      })
   })
 };

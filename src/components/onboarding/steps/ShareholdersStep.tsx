@@ -2,29 +2,30 @@ import React from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Trash2, User, Building2 } from 'lucide-react';
-import { useOnboarding } from '../OnboardingContext';
+import { Plus, Trash2, User, Building2, Loader2 } from 'lucide-react';
+import { useOnboarding } from '../../../contexts/OnboardingContext';
 
 const shareholderSchema = z.object({
-  shareholders: z.array(z.object({
-    type: z.enum(['individual', 'company']),
-    ownershipPercentage: z.number()
-      .min(0, 'Percentage must be greater than 0')
-      .max(100, 'Percentage cannot exceed 100'),
-    // Individual fields
-    firstName: z.string().optional()
-      .refine(val => val === undefined || val.length >= 2, 'First name must be at least 2 characters'),
-    lastName: z.string().optional()
-      .refine(val => val === undefined || val.length >= 2, 'Last name must be at least 2 characters'),
-    birthDate: z.string().optional(),
-    nationality: z.string().optional()
-      .refine(val => val === undefined || val.length >= 2, 'Nationality must be at least 2 characters'),
-    // Company fields
-    companyName: z.string().optional()
-      .refine(val => val === undefined || val.length >= 2, 'Company name must be at least 2 characters'),
-    registrationNumber: z.string().optional()
-      .refine(val => val === undefined || val.length >= 5, 'Registration number must be at least 5 characters'),
-  })).min(1, 'At least one shareholder is required')
+  shareholders: z.array(z.discriminatedUnion('type', [
+    z.object({
+      type: z.literal('individual'),
+      ownershipPercentage: z.number()
+        .min(0, 'Percentage must be greater than 0')
+        .max(100, 'Percentage cannot exceed 100'),
+      firstName: z.string().min(2, 'First name must be at least 2 characters'),
+      lastName: z.string().min(2, 'Last name must be at least 2 characters'),
+      birthDate: z.string().min(1, 'Birth date is required'),
+      nationality: z.string().min(2, 'Nationality must be at least 2 characters'),
+    }),
+    z.object({
+      type: z.literal('company'),
+      ownershipPercentage: z.number()
+        .min(0, 'Percentage must be greater than 0')
+        .max(100, 'Percentage cannot exceed 100'),
+      companyName: z.string().min(2, 'Company name must be at least 2 characters'),
+      registrationNumber: z.string().min(5, 'Registration number must be at least 5 characters'),
+    })
+  ])).min(1, 'At least one shareholder is required')
     .refine(
       shareholders => {
         const total = shareholders.reduce((sum, s) => sum + s.ownershipPercentage, 0);
@@ -44,6 +45,7 @@ export function ShareholdersStep() {
     control,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors, isSubmitting }
   } = useForm<ShareholderInputs>({
     resolver: zodResolver(shareholderSchema),
@@ -51,6 +53,10 @@ export function ShareholdersStep() {
       shareholders: state.shareholders?.length ? state.shareholders : [{
         type: 'individual',
         ownershipPercentage: 100,
+        firstName: '',
+        lastName: '',
+        birthDate: '',
+        nationality: ''
       }]
     }
   });
@@ -60,21 +66,52 @@ export function ShareholdersStep() {
     name: 'shareholders'
   });
 
-  const shareholderTypes = watch('shareholders');
-  const totalPercentage = shareholderTypes?.reduce(
+  const shareholders = watch('shareholders');
+  const totalPercentage = shareholders?.reduce(
     (sum, s) => sum + (parseFloat(s.ownershipPercentage?.toString() || '0') || 0),
     0
   );
 
-  const onSubmit = (data: ShareholderInputs) => {
-    // Convert string percentages to numbers
-    const formattedShareholders = data.shareholders.map(shareholder => ({
-      ...shareholder,
-      ownershipPercentage: parseFloat(shareholder.ownershipPercentage.toString())
-    }));
+  const onSubmit = async (data: ShareholderInputs) => {
+    try {
+      updateShareholders(data.shareholders);
+      await nextStep();
+    } catch (error) {
+      console.error('Error saving shareholders:', error);
+    }
+  };
 
-    updateShareholders(formattedShareholders);
-    nextStep();
+  const addShareholder = () => {
+    const remainingPercentage = Math.max(0, 100 - totalPercentage);
+    append({
+      type: 'individual',
+      ownershipPercentage: remainingPercentage,
+      firstName: '',
+      lastName: '',
+      birthDate: '',
+      nationality: ''
+    });
+  };
+
+  const handleTypeChange = (index: number, newType: 'individual' | 'company') => {
+    const currentPercentage = shareholders[index]?.ownershipPercentage || 0;
+    if (newType === 'individual') {
+      setValue(`shareholders.${index}`, {
+        type: 'individual',
+        ownershipPercentage: currentPercentage,
+        firstName: '',
+        lastName: '',
+        birthDate: '',
+        nationality: ''
+      });
+    } else {
+      setValue(`shareholders.${index}`, {
+        type: 'company',
+        ownershipPercentage: currentPercentage,
+        companyName: '',
+        registrationNumber: ''
+      });
+    }
   };
 
   return (
@@ -102,7 +139,8 @@ export function ShareholdersStep() {
       </div>
 
       {fields.map((field, index) => {
-        const isIndividual = shareholderTypes[index]?.type === 'individual';
+        const shareholder = shareholders[index];
+        const isIndividual = shareholder?.type === 'individual';
         
         return (
           <div key={field.id} className="bg-gray-50 p-6 rounded-lg space-y-6">
@@ -133,7 +171,8 @@ export function ShareholdersStep() {
                   Type *
                 </label>
                 <select
-                  {...register(`shareholders.${index}.type`)}
+                  value={shareholder?.type}
+                  onChange={(e) => handleTypeChange(index, e.target.value as 'individual' | 'company')}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                 >
                   <option value="individual">Individual</option>
@@ -152,8 +191,8 @@ export function ShareholdersStep() {
                     step="0.01"
                     min="0"
                     max="100"
-                    {...register(`shareholders.${index}.ownershipPercentage`, {
-                      setValueAs: value => parseFloat(value)
+                    {...register(`shareholders.${index}.ownershipPercentage` as const, {
+                      valueAsNumber: true
                     })}
                     className="block w-full pr-8 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                   />
@@ -177,7 +216,7 @@ export function ShareholdersStep() {
                     </label>
                     <input
                       type="text"
-                      {...register(`shareholders.${index}.firstName`)}
+                      {...register(`shareholders.${index}.firstName` as const)}
                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                     />
                     {errors.shareholders?.[index]?.firstName && (
@@ -193,7 +232,7 @@ export function ShareholdersStep() {
                     </label>
                     <input
                       type="text"
-                      {...register(`shareholders.${index}.lastName`)}
+                      {...register(`shareholders.${index}.lastName` as const)}
                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                     />
                     {errors.shareholders?.[index]?.lastName && (
@@ -209,7 +248,7 @@ export function ShareholdersStep() {
                     </label>
                     <input
                       type="date"
-                      {...register(`shareholders.${index}.birthDate`)}
+                      {...register(`shareholders.${index}.birthDate` as const)}
                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                     />
                     {errors.shareholders?.[index]?.birthDate && (
@@ -225,7 +264,7 @@ export function ShareholdersStep() {
                     </label>
                     <input
                       type="text"
-                      {...register(`shareholders.${index}.nationality`)}
+                      {...register(`shareholders.${index}.nationality` as const)}
                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                     />
                     {errors.shareholders?.[index]?.nationality && (
@@ -244,7 +283,7 @@ export function ShareholdersStep() {
                     </label>
                     <input
                       type="text"
-                      {...register(`shareholders.${index}.companyName`)}
+                      {...register(`shareholders.${index}.companyName` as const)}
                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                     />
                     {errors.shareholders?.[index]?.companyName && (
@@ -260,7 +299,7 @@ export function ShareholdersStep() {
                     </label>
                     <input
                       type="text"
-                      {...register(`shareholders.${index}.registrationNumber`)}
+                      {...register(`shareholders.${index}.registrationNumber` as const)}
                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                     />
                     {errors.shareholders?.[index]?.registrationNumber && (
@@ -279,10 +318,7 @@ export function ShareholdersStep() {
       {/* Add Shareholder Button */}
       <button
         type="button"
-        onClick={() => append({ 
-          type: 'individual', 
-          ownershipPercentage: Math.max(0, 100 - totalPercentage)
-        })}
+        onClick={addShareholder}
         className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
       >
         <Plus className="h-5 w-5 mr-2" />
@@ -306,9 +342,16 @@ export function ShareholdersStep() {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          className="inline-flex items-center justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
         >
-          Continue
+          {isSubmitting ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            'Continue'
+          )}
         </button>
       </div>
     </form>
