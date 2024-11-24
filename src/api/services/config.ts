@@ -19,9 +19,9 @@ export const API_ENDPOINTS = {
     SETTINGS: '/bank/settings',
   },
   AGENCY: {
-    STAFF: '/agency/staff',
-    CUSTOMERS: '/agency/customers',
-    TRANSACTIONS: '/agency/transactions',
-    STATISTICS: '/agency/statistics',
+    STAFF: '/agencies/staff',
+    CUSTOMERS: '/agencies/customers',
+    TRANSACTIONS: '/agencies/transactions',
+    STATISTICS: '/agencies/statistics',
   },
 };

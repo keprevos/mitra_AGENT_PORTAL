@@ -162,6 +162,7 @@ export function DocumentsStep() {
   const { state, updateDocuments, nextStep, prevStep } = useOnboarding();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedDocument, setSelectedDocument] = useState<string | null>(null);
 
   const handleUpload = async (type: string, file: File) => {
     if (!state.requestId) {
@@ -187,6 +188,10 @@ export function DocumentsStep() {
       console.error('Upload error:', error);
       throw error;
     }
+  };
+
+  const handlePreview = (url: string) => {
+    setSelectedDocument(url);
   };
 
   const handleRemove = (type: string, url: string) => {
@@ -285,6 +290,46 @@ export function DocumentsStep() {
           {isSubmitting ? 'Saving...' : 'Continue'}
         </button>
       </div>
+
+
+      {Object.entries(state.documents).map(([type, files]) => (
+        <div key={type} className="space-y-2">
+          {files.map((url, index) => (
+            <div key={index} className="flex items-center justify-between bg-white p-2 rounded-md">
+              <div className="flex items-center">
+                <Check className="h-5 w-5 text-green-500 mr-2" />
+                <span className="text-sm text-gray-600">
+                  Document {index + 1}
+                </span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={() => handlePreview(url)}
+                  className="text-indigo-600 hover:text-indigo-700"
+                >
+                  <Eye className="h-5 w-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {/* handle remove */}}
+                  className="text-red-600 hover:text-red-700"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
+
+      {selectedDocument && (
+        <DocumentViewer
+          url={selectedDocument}
+          onClose={() => setSelectedDocument(null)}
+        />
+      )}
+
     </div>
   );
 }

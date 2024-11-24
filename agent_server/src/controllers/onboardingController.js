@@ -7,6 +7,7 @@ const Agency = require('../models/Agency');
 const { uploadFile } = require('../utils/fileUpload');
 const { validateRequest } = require('../utils/requestValidation');
 const { sendNotification } = require('../utils/notifications');
+const { stringify } = require('uuid');
 
 exports.getRequests = async (req, res) => {
   try {
@@ -54,9 +55,9 @@ exports.getRequests = async (req, res) => {
       status: request.status.description,
       submissionDate: request.createdAt.toISOString().split('T')[0],
       lastModified: request.updatedAt,
-      agentName: `${request.agent.firstName} ${request.agent.lastName}`,
-      agencyName: request.Agency,
-      bankName: request.Bank,
+      agentName: `${request.agent?.firstName || 'Unknown'} ${request.agent?.lastName || ''}`,
+      agencyName: request.Agency?.name || null, // Safely handle undefined Agency
+      bankName: request.Bank?.name || null,    // Safely handle undefined Bank
       data: {
         personal: request.personalInfo,
         business: request.businessInfo,
@@ -141,25 +142,51 @@ exports.createRequest = async (req, res) => {
 exports.updateRequest = async (req, res) => {
   try {
     const { id } = req.params;
-    const { personalInfo, businessInfo, shareholders, documents } = req.body;
+    const { personalInfo, businessInfo, shareholders, documents } = req.body.data;
 
+    // Fetch the existing request
     const request = await OnboardingRequest.findOne({
-      where: { id, agentId: req.user.id }
+      where: { id, agentId: req.user.id },
     });
 
     if (!request) {
       return res.status(404).json({ message: 'Request not found' });
     }
 
-    const updates = {
-      ...(personalInfo && { personalInfo }),
-      ...(businessInfo && { businessInfo }),
-      ...(shareholders && { shareholders }),
-      ...(documents && { documents }),
-      lastModifiedBy: req.user.id
+    // Merge existing data with incoming updates for JSON fields
+    const updatedPersonalInfo = {
+      ...request.personalInfo,
+      ...personalInfo,
     };
 
-    await request.update(updates);
+    const updatedBusinessInfo = {
+      ...request.businessInfo,
+      ...businessInfo,
+    };
+
+    const updatedShareholders = shareholders || request.shareholders;
+    const updatedDocuments = {
+      ...request.documents,
+      ...documents,
+    };
+
+    // Prepare updates object
+    const updates = {
+      personalInfo: updatedPersonalInfo,
+      businessInfo: updatedBusinessInfo,
+      shareholders: updatedShareholders,
+      documents: updatedDocuments,
+      lastModifiedBy: req.user.id,
+    };
+
+    // Log updates for debugging
+    console.log('Updates:', JSON.stringify(req.body, null, 2));
+
+    // Update the request
+    await request.update(updates, {
+      fields: ['personalInfo', 'businessInfo', 'shareholders', 'documents', 'lastModifiedBy'],
+    });
+
     res.json(request);
   } catch (error) {
     console.error('Error updating request:', error);

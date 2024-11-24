@@ -2,8 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Search, Filter, Edit2, Eye, Clock, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { EndUserRequest } from '../../../types/auth';
 import { requestService } from '../../../api/services/request.service';
-import { OnboardingWizard } from '../../onboarding/OnboardingWizard';
 import toast from 'react-hot-toast';
+
+interface RequestListProps {
+  onEdit: (request: EndUserRequest) => void;
+  onView: (request: EndUserRequest) => void;
+}
 
 const STATUS_COLORS = {
   'Pending Review': 'bg-yellow-100 text-yellow-800',
@@ -19,15 +23,12 @@ const STATUS_ICONS = {
   'Information Required': AlertTriangle
 };
 
-export function RequestList() {
+export function RequestList({ onEdit, onView }: RequestListProps) {
   const [requests, setRequests] = useState<EndUserRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [selectedRequest, setSelectedRequest] = useState<EndUserRequest | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [showWizard, setShowWizard] = useState(false);
 
   useEffect(() => {
     fetchRequests();
@@ -41,28 +42,10 @@ export function RequestList() {
     } catch (err) {
       setError('Failed to fetch requests');
       console.error(err);
+      toast.error('Failed to load requests');
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleEditRequest = (request: EndUserRequest) => {
-    setSelectedRequest(request);
-    setIsEditing(true);
-    setShowWizard(true);
-  };
-
-  const handleViewRequest = (request: EndUserRequest) => {
-    setSelectedRequest(request);
-    setIsEditing(false);
-    setShowWizard(true);
-  };
-
-  const handleCloseWizard = () => {
-    setShowWizard(false);
-    setSelectedRequest(null);
-    setIsEditing(false);
-    fetchRequests();
   };
 
   const filteredRequests = requests.filter(request => {
@@ -75,16 +58,6 @@ export function RequestList() {
     
     return matchesSearch && matchesStatus;
   });
-
-  if (showWizard) {
-    return (
-      <OnboardingWizard 
-        onClose={handleCloseWizard}
-        initialData={selectedRequest?.data}
-        requestId={selectedRequest?.id?.toString()}
-      />
-    );
-  }
 
   if (isLoading) {
     return (
@@ -118,19 +91,17 @@ export function RequestList() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="flex items-center space-x-4">
-          <select
-            className="block w-full sm:w-auto pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="all">All Status</option>
-            <option value="Pending Review">Pending Review</option>
-            <option value="Approved">Approved</option>
-            <option value="Rejected">Rejected</option>
-            <option value="Information Required">Information Required</option>
-          </select>
-        </div>
+        <select
+          className="block w-full sm:w-auto pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option value="all">All Status</option>
+          <option value="Pending Review">Pending Review</option>
+          <option value="Approved">Approved</option>
+          <option value="Rejected">Rejected</option>
+          <option value="Information Required">Information Required</option>
+        </select>
       </div>
 
       {/* Request List */}
@@ -171,7 +142,7 @@ export function RequestList() {
                     </div>
                     <div className="flex items-center space-x-4">
                       <button
-                        onClick={() => handleViewRequest(request)}
+                        onClick={() => onView(request)}
                         className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                       >
                         <Eye className="h-4 w-4 mr-2" />
@@ -179,7 +150,7 @@ export function RequestList() {
                       </button>
                       {request.status !== 'Approved' && request.status !== 'Rejected' && (
                         <button
-                          onClick={() => handleEditRequest(request)}
+                          onClick={() => onEdit(request)}
                           className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                         >
                           <Edit2 className="h-4 w-4 mr-2" />
