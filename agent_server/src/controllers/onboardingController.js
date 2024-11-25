@@ -7,7 +7,6 @@ const Agency = require('../models/Agency');
 const { uploadFile } = require('../utils/fileUpload');
 const { validateRequest } = require('../utils/requestValidation');
 const { sendNotification } = require('../utils/notifications');
-const { stringify } = require('uuid');
 
 exports.getRequests = async (req, res) => {
   try {
@@ -312,7 +311,7 @@ exports.updateRequestStatus = async (req, res) => {
     }
 
     const newStatus = await RequestStatus.findOne({
-      where: { code: status }
+      where: { statusCode: status }
     });
 
     if (!newStatus) {

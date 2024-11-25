@@ -29,10 +29,19 @@ export const authService = {
         localStorage.setItem('token', response.data.token);
         localStorage.setItem('refreshToken', response.data.refreshToken);
         localStorage.setItem('user', JSON.stringify(response.data.user));
+        
+        if (response.data.user.bankId) {
+          localStorage.setItem('bankId', response.data.user.bankId);
+        }
+        
+        if (response.data.user.agencyId) {
+          localStorage.setItem('agencyId', response.data.user.agencyId);
+        }
       }
 
       return response.data;
     } catch (error: any) {
+      console.error('Login error:', error.response?.data || error);
       if (error.response?.status === 401) {
         throw new Error('Invalid email or password');
       }
@@ -44,6 +53,11 @@ export const authService = {
   },
 
   async validateToken(): Promise<TokenValidationResponse> {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('No token found');
+    }
+
     try {
       const response = await axiosInstance.post(API_ENDPOINTS.AUTH.VALIDATE_TOKEN);
       return response.data;
@@ -55,8 +69,10 @@ export const authService = {
 
   async logout(): Promise<void> {
     try {
-      await axiosInstance.post(API_ENDPOINTS.AUTH.LOGOUT);
-      toast.success('Logged out successfully');
+      const token = localStorage.getItem('token');
+      if (token) {
+        await axiosInstance.post(API_ENDPOINTS.AUTH.LOGOUT);
+      }
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
@@ -85,8 +101,13 @@ export const authService = {
   },
 
   getStoredUser(): User | null {
-    const userStr = localStorage.getItem('user');
-    return userStr ? JSON.parse(userStr) : null;
+    try {
+      const userStr = localStorage.getItem('user');
+      return userStr ? JSON.parse(userStr) : null;
+    } catch (error) {
+      console.error('Error parsing stored user:', error);
+      return null;
+    }
   },
 
   isAuthenticated(): boolean {

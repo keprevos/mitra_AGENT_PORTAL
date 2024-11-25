@@ -1,21 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ArrowLeft, Check, X, FileText, ChevronLeft, AlertTriangle } from 'lucide-react';
+import { Search, ArrowLeft, Check, X, FileText, ChevronLeft, AlertTriangle, } from 'lucide-react';
 import { EndUserRequest } from '../../../types/auth';
-import { requestService, REQUEST_STATUS } from '../../../api/services/request.service';
+import { requestService } from '../../../api/services/request.service';
 import { ValidationSummary } from '../validation/ValidationSummary';
 import { RequestValidation } from '../validation/RequestValidation';
+import { RequestStatus } from '../../../types/onboarding';
+import toast from 'react-hot-toast';
 
 const REQUEST_TABS = [
-  { id: REQUEST_STATUS.ANALYSIS, label: 'Analyse de la demande' },
-  { id: REQUEST_STATUS.CLIENT_RESPONSE, label: 'En attente retour client' },
-  { id: REQUEST_STATUS.CTO_REVIEW, label: "En attente d'avis CTO" },
-  { id: REQUEST_STATUS.DOUBLE_VALIDATION, label: 'En attente de double validation' },
-  { id: REQUEST_STATUS.CAPITAL_ALLOCATION, label: 'En attente répartition capital' },
-  { id: REQUEST_STATUS.INITIAL_TRANSFER, label: 'En attente virement initial' },
-  { id: REQUEST_STATUS.KBIS_PENDING, label: 'En attente Kbis' },
-  { id: REQUEST_STATUS.ACCOUNTS_OPENED, label: 'Comptes ouverts' },
-  { id: REQUEST_STATUS.REJECTED, label: 'Demandes refusées' },
-  { id: REQUEST_STATUS.IN_PROGRESS, label: 'Demande en cours' },
+  { id: RequestStatus.DRAFT, label: 'Analyse de la demande' },
+  { id: RequestStatus.CLIENT_CORRECTED, label: 'En attente retour client' },
+  { id: RequestStatus.CTO_REVIEW, label: "En attente d'avis CTO" },
+  { id: RequestStatus.N2_REVIEW, label: 'En attente de double validation' },
+  { id: RequestStatus.CAPITAL_PENDING, label: 'En attente répartition capital' },
+  { id: RequestStatus.INITIAL_TRANSFER, label: 'En attente virement initial' },
+  { id: RequestStatus.KBIS_PENDING, label: 'En attente Kbis' },
+  { id: RequestStatus.ACCOUNT_OPENED, label: 'Comptes ouverts' },
+  { id: RequestStatus.REJECTED_N0, label: 'Demandes refusées' },
+  { id: RequestStatus.SUBMITTED, label: 'Demande en cours' },
 ];
 
 export function RequestReview() {
@@ -84,7 +86,7 @@ export function RequestReview() {
     if (!selectedRequest) return;
     try {
       await requestService.updateRequestStatus(selectedRequest.id, {
-        status: REQUEST_STATUS.ACCOUNTS_OPENED
+        status: RequestStatus.SUBMITTED
       });
       setSelectedRequest(null);
       fetchRequests();
@@ -95,20 +97,22 @@ export function RequestReview() {
 
   const handleRejectRequest = async () => {
     if (!selectedRequest || !rejectionReason) return;
+    
     try {
       await requestService.updateRequestStatus(selectedRequest.id, {
-        status: REQUEST_STATUS.REJECTED,
+        status: RequestStatus.REJECTED_N0, // This will send the numeric value 170
         comment: rejectionReason
       });
+      toast.success('Request rejected successfully');
       setShowRejectionModal(false);
       setRejectionReason('');
       setSelectedRequest(null);
       fetchRequests();
     } catch (err) {
       console.error('Failed to reject request:', err);
+      toast.error('Failed to reject request');
     }
   };
-
   const filteredRequests = requests.filter(request => {
     const matchesSearch = 
       request.name.toLowerCase().includes(searchTerm.toLowerCase()) ||

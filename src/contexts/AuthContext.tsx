@@ -14,43 +14,35 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(() => authService.getStoredUser());
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const initAuth = async () => {
-      const token = localStorage.getItem('token');
-      if (token) {
-        try {
+      try {
+        const storedUser = authService.getStoredUser();
+        const token = localStorage.getItem('token');
+
+        if (token && storedUser) {
           const response = await authService.validateToken();
           if (response.valid) {
             setUser(response.user);
           } else {
-            await logout();
+            await handleLogout();
           }
-        } catch (error) {
-          console.error('Session validation failed:', error);
-          await logout();
         }
+      } catch (error) {
+        console.error('Session validation failed:', error);
+        await handleLogout();
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     initAuth();
   }, []);
 
-  const login = async (email: string, password: string) => {
-    try {
-      const response = await authService.login({ email, password });
-      setUser(response.user);
-      toast.success('Welcome back!');
-    } catch (error) {
-      console.error('Login failed:', error);
-      throw error;
-    }
-  };
-
-  const logout = async () => {
+  const handleLogout = async () => {
     try {
       await authService.logout();
     } catch (error) {
@@ -61,14 +53,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const login = async (email: string, password: string) => {
+    try {
+      const response = await authService.login({ email, password });
+      setUser(response.user);
+      return response.user;
+    } catch (error) {
+      console.error('Login failed:', error);
+      throw error;
+    }
+  };
+
   return (
-    <AuthContext.Provider 
-      value={{ 
-        user, 
-        login, 
-        logout, 
+    <AuthContext.Provider
+      value={{
+        user,
+        login,
+        logout: handleLogout,
         isAuthenticated: !!user,
-        isLoading 
+        isLoading
       }}
     >
       {children}

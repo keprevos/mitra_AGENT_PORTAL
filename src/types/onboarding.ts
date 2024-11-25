@@ -33,7 +33,7 @@ export enum RequestStatus {
   KBIS_RECEIVED = 161,        // REQSTATUS00070 - Kbis envoyé par le client
   
   // Final States
-  REJECTED_N0 = 170,          // REQSTATUS00045 - Demande refusée N0
+  REJECTED_N0 = 101,          // REQSTATUS00045 - Demande refusée N0
   REJECTED_N1 = 171,          // REQSTATUS00066 - Demande refusée N1
   REJECTED_N2 = 172,          // REQSTATUS00067 - Demande refusée N2
   BANK_SIGNED = 180,          // REQSTATUS00046 - Signature Banque apposée

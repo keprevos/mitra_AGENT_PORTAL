@@ -21,12 +21,14 @@ function DashboardRouter() {
       return <SuperAdminDashboard />;
     case 'bank_admin':
       return <BankDashboard />;
+    case 'bank_staff':
+      return <BankDashboard />;
     case 'agency_admin':
       return <AgencyDashboard />;
     case 'agent_staff':
       return <Dashboard />;
     default:
-      return <Navigate to="/login" replace />;
+      return <Navigate to="/unauthorized" replace />;
   }
 }
 
@@ -39,9 +41,8 @@ export default function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/unauthorized" element={<Unauthorized />} />
             
-            {/* Protected Routes */}
             <Route
-              path="/dashboard"
+              path="/dashboard/*"
               element={
                 <ProtectedRoute>
                   <DashboardRouter />
@@ -50,6 +51,7 @@ export default function App() {
             />
 
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </BrowserRouter>
       </RoleProvider>

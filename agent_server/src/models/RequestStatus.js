@@ -76,4 +76,12 @@ const RequestStatus = sequelize.define('RequestStatus', {
   }
 });
 
+// Define associations
+RequestStatus.associate = (models) => {
+  RequestStatus.hasMany(models.OnboardingRequest, {
+    foreignKey: 'statusId',
+    as: 'requests'
+  });
+};
+
 module.exports = RequestStatus;

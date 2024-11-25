@@ -3,12 +3,10 @@ import { EndUserRequest } from '../../types/auth';
 import { mockRequests } from '../mock/mockData';
 import { APP_CONFIG } from '../../config/app.config';
 import { API_ENDPOINTS } from '../config';
-
-export const { REQUEST_STATUS } = APP_CONFIG;
-export type RequestStatus = typeof REQUEST_STATUS[keyof typeof REQUEST_STATUS];
+import { RequestStatus } from '../../types/onboarding';
 
 export interface RequestStatusUpdate {
-  status: RequestStatus;
+  status: number; // Changed to number since we're sending the enum value
   comment?: string;
   fieldUpdates?: Record<string, any>;
 }
@@ -33,7 +31,15 @@ class RequestService extends BaseService {
   }
 
   async updateRequestStatus(id: string, update: RequestStatusUpdate): Promise<EndUserRequest> {
-    return this.put<EndUserRequest>(`/onboarding/requests/${id}/status`, update);
+    // Send the numeric enum value directly
+    const statusValue = typeof update.status === 'string' 
+      ? RequestStatus[update.status as keyof typeof RequestStatus]
+      : update.status;
+
+    return this.put<EndUserRequest>(`/onboarding/requests/${id}/status`, {
+      ...update,
+      status: statusValue
+    });
   }
 
   async addComment(id: string, comment: RequestComment): Promise<EndUserRequest> {
@@ -48,9 +54,7 @@ class RequestService extends BaseService {
     return this.post<EndUserRequest>(API_ENDPOINTS.ONBOARDING.REQUESTS, data);
   }
 
-
   async updateRequest(id: string, data: any): Promise<EndUserRequest> {
-    // Format the data to match the backend expectations
     const updateData = {
       personalInfo: data.data?.personal,
       businessInfo: data.data?.business,
@@ -82,12 +86,10 @@ class RequestService extends BaseService {
     return response.json();
   }
 
-  // Helper method to get full document URL
   getDocumentUrl(path: string): string {
     if (path.startsWith('http')) return path;
     return `${APP_CONFIG.API_BASE_URL}${path}`;
   }
-
 }
 
 export const requestService = new RequestService();

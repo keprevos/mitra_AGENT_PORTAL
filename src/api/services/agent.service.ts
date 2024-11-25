@@ -1,5 +1,5 @@
-import { Agent } from '../../types/auth';
 import { BaseService } from './base.service';
+import { Agent } from '../../types/auth';
 import { mockAgents } from '../mock/mockData';
 import { APP_CONFIG } from '../../config/app.config';
 

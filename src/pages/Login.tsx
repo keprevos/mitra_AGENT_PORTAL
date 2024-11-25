@@ -1,30 +1,42 @@
-import React, { useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { LoginForm } from '../components/auth/LoginForm';
 import { useAuth } from '../contexts/AuthContext';
+import toast from 'react-hot-toast';
 
 export function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>();
   const navigate = useNavigate();
-  const { login, isAuthenticated } = useAuth();
+  const location = useLocation();
+  const { login, isAuthenticated, user } = useAuth();
+
+  // Get the redirect path from location state or default to dashboard
+  const from = location.state?.from?.pathname || '/dashboard';
+
+  // Handle authentication redirect
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isAuthenticated, user, navigate]);
 
   const handleLogin = async (email: string, password: string) => {
     try {
       setIsLoading(true);
       setError(undefined);
-      await login(email, password);
-      navigate('/dashboard');
+      const loggedInUser = await login(email, password);
+      
+      if (loggedInUser) {
+        toast.success('Login successful');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
+      toast.error('Login failed');
     } finally {
       setIsLoading(false);
     }
   };
-alert(isAuthenticated );
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-white to-indigo-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
