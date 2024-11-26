@@ -10,6 +10,7 @@ const { sendNotification } = require('../utils/notifications');
 
 exports.getRequests = async (req, res) => {
   try {
+    const { status } = req.query;
     const where = {};
     
     // Filter by role
@@ -19,13 +20,24 @@ exports.getRequests = async (req, res) => {
       where.bankId = req.user.bankId;
     }
 
+    // Add status filter if provided
+    if (status !== undefined) {
+      const requestStatus = await RequestStatus.findOne({
+        where: { statusCode: parseInt(status) }
+      });
+      
+      if (requestStatus) {
+        where.statusId = requestStatus.id;
+      }
+    }
+
     const requests = await OnboardingRequest.findAll({
       where,
       include: [
         {
           model: RequestStatus,
           as: 'status',
-          attributes: ['code', 'description']
+          attributes: ['code', 'description', 'statusCode']
         },
         {
           model: User,
@@ -51,12 +63,13 @@ exports.getRequests = async (req, res) => {
       name: request.personalInfo?.firstName + ' ' + request.personalInfo?.surname,
       email: request.personalInfo?.email,
       companyName: request.businessInfo?.companyName,
-      status: request.status.description,
+      status: request.status.statusCode, // Return the numeric status code
+      statusDescription: request.status.description,
       submissionDate: request.createdAt.toISOString().split('T')[0],
       lastModified: request.updatedAt,
       agentName: `${request.agent?.firstName || 'Unknown'} ${request.agent?.lastName || ''}`,
-      agencyName: request.Agency?.name || null, // Safely handle undefined Agency
-      bankName: request.Bank?.name || null,    // Safely handle undefined Bank
+      agencyName: request.agency?.name || null,
+      bankName: request.bank?.name || null,
       data: {
         personal: request.personalInfo,
         business: request.businessInfo,
@@ -71,6 +84,7 @@ exports.getRequests = async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch requests' });
   }
 };
+
 
 exports.getRequest = async (req, res) => {
   try {

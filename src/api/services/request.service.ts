@@ -6,7 +6,7 @@ import { API_ENDPOINTS } from '../config';
 import { RequestStatus } from '../../types/onboarding';
 
 export interface RequestStatusUpdate {
-  status: number; // Changed to number since we're sending the enum value
+  status: number;
   comment?: string;
   fieldUpdates?: Record<string, any>;
 }
@@ -22,32 +22,28 @@ class RequestService extends BaseService {
     return mockRequests;
   }
 
-  async getRequests(): Promise<EndUserRequest[]> {
-    return this.get<EndUserRequest[]>('/onboarding/requests');
+  async getRequests(status?: RequestStatus): Promise<EndUserRequest[]> {
+    const endpoint = status !== undefined 
+      ? `${API_ENDPOINTS.ONBOARDING.REQUESTS}?status=${status}`
+      : API_ENDPOINTS.ONBOARDING.REQUESTS;
+    
+    return this.get<EndUserRequest[]>(endpoint);
   }
 
   async getRequestById(id: string): Promise<EndUserRequest> {
-    return this.get<EndUserRequest>(`/onboarding/requests/${id}`);
+    return this.get<EndUserRequest>(`${API_ENDPOINTS.ONBOARDING.REQUESTS}/${id}`);
   }
 
   async updateRequestStatus(id: string, update: RequestStatusUpdate): Promise<EndUserRequest> {
-    // Send the numeric enum value directly
-    const statusValue = typeof update.status === 'string' 
-      ? RequestStatus[update.status as keyof typeof RequestStatus]
-      : update.status;
-
-    return this.put<EndUserRequest>(`/onboarding/requests/${id}/status`, {
-      ...update,
-      status: statusValue
-    });
+    return this.put<EndUserRequest>(`${API_ENDPOINTS.ONBOARDING.REQUESTS}/${id}/status`, update);
   }
 
   async addComment(id: string, comment: RequestComment): Promise<EndUserRequest> {
-    return this.post<EndUserRequest>(`/onboarding/requests/${id}/comments`, comment);
+    return this.post<EndUserRequest>(`${API_ENDPOINTS.ONBOARDING.REQUESTS}/${id}/comments`, comment);
   }
 
   async updateField(id: string, fieldId: string, value: any): Promise<EndUserRequest> {
-    return this.put<EndUserRequest>(`/onboarding/requests/${id}/fields/${fieldId}`, { value });
+    return this.put<EndUserRequest>(`${API_ENDPOINTS.ONBOARDING.REQUESTS}/${id}/fields/${fieldId}`, { value });
   }
 
   async createRequest(data: Partial<EndUserRequest>): Promise<EndUserRequest> {

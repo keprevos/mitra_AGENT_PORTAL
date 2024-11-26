@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ArrowLeft, Check, X, FileText, ChevronLeft, AlertTriangle, } from 'lucide-react';
+import { Search, ArrowLeft, Check, X, FileText, ChevronLeft, AlertTriangle, Loader2 } from 'lucide-react';
 import { EndUserRequest } from '../../../types/auth';
 import { requestService } from '../../../api/services/request.service';
 import { ValidationSummary } from '../validation/ValidationSummary';
@@ -8,16 +8,31 @@ import { RequestStatus } from '../../../types/onboarding';
 import toast from 'react-hot-toast';
 
 const REQUEST_TABS = [
-  { id: RequestStatus.DRAFT, label: 'Analyse de la demande' },
-  { id: RequestStatus.CLIENT_CORRECTED, label: 'En attente retour client' },
-  { id: RequestStatus.CTO_REVIEW, label: "En attente d'avis CTO" },
-  // { id: RequestStatus.N2_REVIEW, label: 'En attente de double validation' },
-  // { id: RequestStatus.CAPITAL_PENDING, label: 'En attente répartition capital' },
-  // { id: RequestStatus.INITIAL_TRANSFER, label: 'En attente virement initial' },
-  // { id: RequestStatus.KBIS_PENDING, label: 'En attente Kbis' },
-  // { id: RequestStatus.ACCOUNT_OPENED, label: 'Comptes ouverts' },
-  { id: RequestStatus.REJECTED_N0, label: 'Demandes refusées' },
-  { id: RequestStatus.SUBMITTED, label: 'Demande en cours' },
+  { 
+    id: RequestStatus.DRAFT, 
+    label: 'Analyse de la demande',
+    description: 'Requests in draft status'
+  },
+  { 
+    id: RequestStatus.COMPLETED, 
+    label: 'En attente retour client',
+    description: 'Awaiting client response'
+  },
+  { 
+    id: RequestStatus.SIGNED, 
+    label: "En attente d'avis CTO",
+    description: 'Pending CTO review'
+  },
+  { 
+    id: RequestStatus.REJECTED_N0, 
+    label: 'Demandes refusées',
+    description: 'Rejected requests'
+  },
+  { 
+    id: RequestStatus.SUBMITTED, 
+    label: 'Demande en cours',
+    description: 'Requests in progress'
+  }
 ];
 
 export function RequestReview() {
@@ -33,6 +48,7 @@ export function RequestReview() {
   }>>({});
   const [rejectionReason, setRejectionReason] = useState('');
   const [showRejectionModal, setShowRejectionModal] = useState(false);
+  const [requestCounts, setRequestCounts] = useState<Record<number, number>>({});
 
   useEffect(() => {
     fetchRequests();
@@ -41,11 +57,21 @@ export function RequestReview() {
   const fetchRequests = async () => {
     try {
       setIsLoading(true);
-      const data = await requestService.getRequests();
+      setError(null);
+      const data = await requestService.getRequests(activeTab);
+      console.log('Fetched requests:', data); // Debug log
       setRequests(data);
+
+      // Calculate request counts for all statuses
+      const counts = REQUEST_TABS.reduce((acc, tab) => {
+        acc[tab.id] = data.filter(request => request.status === tab.id).length;
+        return acc;
+      }, {} as Record<number, number>);
+      
+      setRequestCounts(counts);
     } catch (err) {
+      console.error('Failed to fetch requests:', err);
       setError('Failed to fetch requests');
-      console.error(err);
     } finally {
       setIsLoading(false);
     }
@@ -67,6 +93,7 @@ export function RequestReview() {
       });
     } catch (err) {
       console.error('Failed to save validation:', err);
+      toast.error('Failed to save validation');
     }
   };
 
@@ -79,6 +106,7 @@ export function RequestReview() {
       setSelectedRequest(updatedRequest);
     } catch (err) {
       console.error('Failed to update field:', err);
+      toast.error('Failed to update field');
     }
   };
 
@@ -90,8 +118,10 @@ export function RequestReview() {
       });
       setSelectedRequest(null);
       fetchRequests();
+      toast.success('Request approved successfully');
     } catch (err) {
       console.error('Failed to approve request:', err);
+      toast.error('Failed to approve request');
     }
   };
 
@@ -100,7 +130,7 @@ export function RequestReview() {
     
     try {
       await requestService.updateRequestStatus(selectedRequest.id, {
-        status: RequestStatus.REJECTED_N0, // This will send the numeric value 170
+        status: RequestStatus.REJECTED_N0,
         comment: rejectionReason
       });
       toast.success('Request rejected successfully');
@@ -113,11 +143,12 @@ export function RequestReview() {
       toast.error('Failed to reject request');
     }
   };
+
   const filteredRequests = requests.filter(request => {
     const matchesSearch = 
-      request.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.companyName?.toLowerCase().includes(searchTerm.toLowerCase());
+      (request.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (request.email?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (request.companyName?.toLowerCase() || '').includes(searchTerm.toLowerCase());
     
     return matchesSearch;
   });
@@ -273,14 +304,22 @@ export function RequestReview() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`
-                  whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm
+                  whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2
                   ${activeTab === tab.id
                     ? 'border-indigo-500 text-indigo-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }
                 `}
               >
-                {tab.label}
+                <span>{tab.label}</span>
+                {requestCounts[tab.id] > 0 && (
+                  <span className={`
+                    inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                    ${activeTab === tab.id ? 'bg-indigo-100 text-indigo-800' : 'bg-gray-100 text-gray-800'}
+                  `}>
+                    {requestCounts[tab.id]}
+                  </span>
+                )}
               </button>
             ))}
           </nav>
@@ -289,46 +328,56 @@ export function RequestReview() {
         {/* Requests List */}
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+            <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
           </div>
         ) : error ? (
           <div className="text-center text-red-600 p-4">{error}</div>
         ) : (
           <div className="divide-y divide-gray-200">
-            {filteredRequests.map((request) => (
-              <div
-                key={request.id}
-                className="hover:bg-gray-50 cursor-pointer transition-colors duration-150"
-                onClick={() => setSelectedRequest(request)}
-              >
-                <div className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-3">
-                        <h3 className="text-sm font-medium text-indigo-600 truncate">
-                          {request.name}
-                        </h3>
-                        <span className="flex-shrink-0 inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
-                          #{request.id}
-                        </span>
+            {filteredRequests.length > 0 ? (
+              filteredRequests.map((request) => (
+                <div
+                  key={request.id}
+                  className="hover:bg-gray-50 cursor-pointer transition-colors duration-150"
+                  onClick={() => setSelectedRequest(request)}
+                >
+                  <div className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-3">
+                          <h3 className="text-sm font-medium text-indigo-600 truncate">
+                            {request.name}
+                          </h3>
+                          <span className="flex-shrink-0 inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
+                            #{request.id}
+                          </span>
+                        </div>
+                        <div className="mt-1 flex items-center space-x-3 text-sm text-gray-500">
+                          <span>{request.email}</span>
+                          {request.companyName && (
+                            <>
+                              <span>•</span>
+                              <span>{request.companyName}</span>
+                            </>
+                          )}
+                        </div>
+                        <div className="mt-2 flex items-center text-sm text-gray-500">
+                          <FileText className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
+                          <span>Soumis le {request.submissionDate}</span>
+                        </div>
                       </div>
-                      <div className="mt-1 flex items-center space-x-3 text-sm text-gray-500">
-                        <span>{request.email}</span>
-                        <span>•</span>
-                        <span>{request.companyName}</span>
+                      <div className="ml-5 flex-shrink-0">
+                        <ChevronLeft className="h-5 w-5 text-gray-400 transform rotate-180" />
                       </div>
-                      <div className="mt-2 flex items-center text-sm text-gray-500">
-                        <FileText className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
-                        <span>Soumis le {request.submissionDate}</span>
-                      </div>
-                    </div>
-                    <div className="ml-5 flex-shrink-0">
-                      <ChevronLeft className="h-5 w-5 text-gray-400 transform rotate-180" />
                     </div>
                   </div>
                 </div>
+              ))
+            ) : (
+              <div className="p-6 text-center text-gray-500">
+                Aucune demande trouvée pour ce statut
               </div>
-            ))}
+            )}
           </div>
         )}
       </div>
