@@ -17,6 +17,7 @@ const bankStaffRoutes = require('./routes/bankStaff');
 const rolesRoutes = require('./routes/roles');
 const onboardingRoutes = require('./routes/onboarding');
 
+// Create Express app
 const app = express();
 
 // Security middleware
@@ -30,7 +31,7 @@ app.use(express.json());
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
+  max: 100 // Limit each IP to 100 requests per windowMs
 });
 app.use(limiter);
 
@@ -58,8 +59,45 @@ app.use((err, req, res, next) => {
 // Database sync and server start
 const PORT = process.env.PORT || 3000;
 
-sequelize.sync({ alter: true }).then(() => {
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-  });
+// Only sync in development
+const syncOptions = {
+  alter: process.env.NODE_ENV === 'development'
+};
+
+// Initialize database and start server
+async function startServer() {
+  try {
+    // Connect to database
+    await sequelize.authenticate();
+    console.log('Database connection established.');
+
+    // Sync models if in development
+    if (process.env.NODE_ENV === 'development') {
+      await sequelize.sync(syncOptions);
+      console.log('Database synced.');
+    }
+
+    // Start server
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error('Unable to start server:', error);
+    process.exit(1);
+  }
+}
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  process.exit(1);
 });
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (error) => {
+  console.error('Unhandled Rejection:', error);
+  process.exit(1);
+});
+
+// Start the server
+startServer();

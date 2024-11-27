@@ -58,4 +58,25 @@ router.put('/requests/:id/status',
   onboardingController.updateRequestStatus
 );
 
+router.post(
+  '/requests/:requestId/validation',
+  auth,
+  checkRole(['bank_staff', 'bank_admin']),
+  onboardingController.addValidationFeedback
+);
+
+router.post('/requests/:id/validation',
+  auth,
+  checkRole(['bank_staff', 'bank_admin']),
+  onboardingController.addValidationFeedback
+);
+
+
+router.get(
+  '/requests/:requestId/validation',
+  auth,
+  onboardingController.getValidationFeedback
+);
+
+
 module.exports = router;

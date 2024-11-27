@@ -1,0 +1,24 @@
+{
+    "verbose": false,
+    "ignore": [
+      ".git",
+      "node_modules/**/node_modules",
+      "uploads/*",
+      "*.test.js",
+      "coverage"
+    ],
+    "watch": [
+      "src/"
+    ],
+    "ext": "js,json",
+    "delay": "500",
+    "execMap": {
+      "js": "node"
+    },
+    "events": {
+      "restart": "echo \"App restarted due to changes\""
+    },
+    "env": {
+      "NODE_ENV": "development"
+    }
+  }

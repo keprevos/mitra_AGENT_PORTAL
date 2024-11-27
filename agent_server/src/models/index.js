@@ -11,7 +11,9 @@ const db = {};
 const User = require('./User');
 const Role = require('./Role');
 const Bank = require('./Bank');
-const Agency = require('./Agency');
+const Agency = require('./Agency'); // Correct import for Agency
+const ValidationFeedback = require('./ValidationFeedback'); // Correct import for ValidationFeedback
+
 const OnboardingRequest = require('./OnboardingRequest');
 const RequestStatus = require('./RequestStatus');
 const RequestStatusHistory = require('./RequestStatusHistory');
@@ -31,6 +33,21 @@ Agency.belongsTo(Bank, { foreignKey: 'bankId' });
 Agency.hasMany(User, { foreignKey: 'agencyId' });
 User.belongsTo(Agency, { foreignKey: 'agencyId' });
 
+OnboardingRequest.hasMany(ValidationFeedback, {
+  foreignKey: 'requestId',
+  as: 'validationFeedback'
+});
+
+ValidationFeedback.belongsTo(OnboardingRequest, {
+  foreignKey: 'requestId',
+  as: 'request'
+});
+
+ValidationFeedback.belongsTo(User, {
+  foreignKey: 'validatedBy',
+  as: 'validator'
+});
+
 // Onboarding associations
 OnboardingRequest.belongsTo(RequestStatus, { foreignKey: 'statusId', as: 'status' });
 RequestStatus.hasMany(OnboardingRequest, { foreignKey: 'statusId', as: 'requests' });
@@ -38,6 +55,8 @@ RequestStatus.hasMany(OnboardingRequest, { foreignKey: 'statusId', as: 'requests
 OnboardingRequest.belongsTo(User, { foreignKey: 'agentId', as: 'agent' });
 OnboardingRequest.belongsTo(Bank, { foreignKey: 'bankId', as: 'bank' });
 OnboardingRequest.belongsTo(Agency, { foreignKey: 'agencyId', as: 'agency' });
+Agency.hasMany(OnboardingRequest, { foreignKey: 'agencyId', as: 'agencyRequests' }); // Optional reverse association
+
 OnboardingRequest.belongsTo(User, { foreignKey: 'validatedBy', as: 'validator' });
 OnboardingRequest.belongsTo(User, { foreignKey: 'lastModifiedBy', as: 'modifier' });
 
@@ -65,6 +84,7 @@ module.exports = {
   Role,
   Bank,
   Agency,
+  ValidationFeedback, // Added ValidationFeedback to exports
   OnboardingRequest,
   RequestStatus,
   RequestStatusHistory,

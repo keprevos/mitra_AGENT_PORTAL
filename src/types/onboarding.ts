@@ -100,6 +100,15 @@ export interface Documents {
   bankDetails: string[];
 }
 
+export interface ValidationFeedback {
+  status: 'ok' | 'error' | 'warning';
+  comment?: string;
+  fieldId: string;
+  validatedBy: string;
+  validatedAt: Date;
+}
+
+
 export interface OnboardingRequest {
   id: string;
   personalInfo: PersonalInfo;

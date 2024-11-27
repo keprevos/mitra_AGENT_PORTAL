@@ -1,54 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ArrowLeft, Check, X, FileText, ChevronLeft, AlertTriangle, Loader2 } from 'lucide-react';
+import { ChevronLeft, Check, X, AlertTriangle, Search } from 'lucide-react';
 import { EndUserRequest } from '../../../types/auth';
+import { RequestStatus } from '../../../types/onboarding';
 import { requestService } from '../../../api/services/request.service';
 import { ValidationSummary } from '../validation/ValidationSummary';
 import { RequestValidation } from '../validation/RequestValidation';
-import { RequestStatus } from '../../../types/onboarding';
 import toast from 'react-hot-toast';
 
-const REQUEST_TABS = [
-  { 
-    id: RequestStatus.DRAFT, 
-    label: 'Analyse de la demande',
-    description: 'Requests in draft status'
-  },
-  { 
-    id: RequestStatus.COMPLETED, 
-    label: 'En attente retour client',
-    description: 'Awaiting client response'
-  },
-  { 
-    id: RequestStatus.SIGNED, 
-    label: "En attente d'avis CTO",
-    description: 'Pending CTO review'
-  },
-  { 
-    id: RequestStatus.REJECTED_N0, 
-    label: 'Demandes refusées',
-    description: 'Rejected requests'
-  },
-  { 
-    id: RequestStatus.SUBMITTED, 
-    label: 'Demande en cours',
-    description: 'Requests in progress'
-  }
-];
-
-export function RequestReview() {
-  const [activeTab, setActiveTab] = useState(REQUEST_TABS[0].id);
-  const [requests, setRequests] = useState<EndUserRequest[]>([]);
-  const [selectedRequest, setSelectedRequest] = useState<EndUserRequest | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [validationStatus, setValidationStatus] = useState<Record<string, { 
+interface ValidationState {
+  [key: string]: {
     status?: 'ok' | 'error' | 'warning';
     comment?: string;
-  }>>({});
+  };
+}
+
+export function RequestReview() {
+  const [requests, setRequests] = useState<EndUserRequest[]>([]);
+  const [selectedRequest, setSelectedRequest] = useState<EndUserRequest | null>(null);
+  const [validationStatus, setValidationStatus] = useState<ValidationState>({});
   const [rejectionReason, setRejectionReason] = useState('');
   const [showRejectionModal, setShowRejectionModal] = useState(false);
-  const [requestCounts, setRequestCounts] = useState<Record<number, number>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState(RequestStatus.DRAFT);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     fetchRequests();
@@ -57,71 +33,51 @@ export function RequestReview() {
   const fetchRequests = async () => {
     try {
       setIsLoading(true);
-      setError(null);
       const data = await requestService.getRequests(activeTab);
-      console.log('Fetched requests:', data); // Debug log
       setRequests(data);
-
-      // Calculate request counts for all statuses
-      const counts = REQUEST_TABS.reduce((acc, tab) => {
-        acc[tab.id] = data.filter(request => request.status === tab.id).length;
-        return acc;
-      }, {} as Record<number, number>);
-      
-      setRequestCounts(counts);
     } catch (err) {
-      console.error('Failed to fetch requests:', err);
       setError('Failed to fetch requests');
+      console.error(err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleValidateField = async (fieldKey: string, status: 'ok' | 'error' | 'warning', comment?: string) => {
-    if (!selectedRequest) return;
-
+  const handleValidateField = (fieldKey: string, status: 'ok' | 'error' | 'warning', comment?: string) => {
     setValidationStatus(prev => ({
       ...prev,
       [fieldKey]: { status, comment }
     }));
-
-    try {
-      await requestService.addComment(selectedRequest.id, {
-        fieldId: fieldKey,
-        status,
-        message: comment || ''
-      });
-    } catch (err) {
-      console.error('Failed to save validation:', err);
-      toast.error('Failed to save validation');
-    }
-  };
-
-  const handleEditField = async (fieldKey: string, newValue: string) => {
-    if (!selectedRequest) return;
-
-    try {
-      await requestService.updateField(selectedRequest.id, fieldKey, newValue);
-      const updatedRequest = await requestService.getRequestById(selectedRequest.id);
-      setSelectedRequest(updatedRequest);
-    } catch (err) {
-      console.error('Failed to update field:', err);
-      toast.error('Failed to update field');
-    }
   };
 
   const handleApproveRequest = async () => {
     if (!selectedRequest) return;
+
     try {
+      setIsSubmitting(true);
+
+      // Convert validation status to array of feedback objects
+      const validationFeedback = Object.entries(validationStatus).map(([fieldId, validation]) => ({
+        fieldId,
+        status: validation.status,
+        message: validation.comment
+      })).filter(feedback => feedback.status); // Only include fields that have been validated
+
+      // Update request status and save all validation feedback at once
       await requestService.updateRequestStatus(selectedRequest.id, {
-        status: RequestStatus.SUBMITTED
+        status: RequestStatus.SUBMITTED,
+        validationFeedback
       });
-      setSelectedRequest(null);
-      fetchRequests();
+
       toast.success('Request approved successfully');
+      setSelectedRequest(null);
+      setValidationStatus({});
+      fetchRequests();
     } catch (err) {
       console.error('Failed to approve request:', err);
       toast.error('Failed to approve request');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -129,99 +85,93 @@ export function RequestReview() {
     if (!selectedRequest || !rejectionReason) return;
     
     try {
+      setIsSubmitting(true);
+
+      // Convert validation status to array of feedback objects
+      const validationFeedback = [
+        // Include rejection reason as overall feedback
+        {
+          fieldId: 'request.status',
+          status: 'error' as const,
+          message: rejectionReason
+        },
+        // Include all other field validations
+        ...Object.entries(validationStatus).map(([fieldId, validation]) => ({
+          fieldId,
+          status: validation.status,
+          message: validation.comment
+        })).filter(feedback => feedback.status) // Only include fields that have been validated
+      ];
+
+      // Update request status and save all validation feedback at once
       await requestService.updateRequestStatus(selectedRequest.id, {
         status: RequestStatus.REJECTED_N0,
-        comment: rejectionReason
+        comment: rejectionReason,
+        validationFeedback
       });
+
       toast.success('Request rejected successfully');
       setShowRejectionModal(false);
       setRejectionReason('');
       setSelectedRequest(null);
+      setValidationStatus({});
       fetchRequests();
     } catch (err) {
       console.error('Failed to reject request:', err);
       toast.error('Failed to reject request');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const filteredRequests = requests.filter(request => {
-    const matchesSearch = 
-      (request.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (request.email?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-      (request.companyName?.toLowerCase() || '').includes(searchTerm.toLowerCase());
-    
-    return matchesSearch;
-  });
+  const REQUEST_TABS = [
+    { id: RequestStatus.DRAFT, label: 'Analyse de la demande' },
+    { id: RequestStatus.CLIENT_CORRECTED, label: 'En attente retour client' },
+    { id: RequestStatus.CTO_REVIEW, label: "En attente d'avis CTO" },
+    { id: RequestStatus.REJECTED_N0, label: 'Demandes refusées' },
+    { id: RequestStatus.SUBMITTED, label: 'Demande en cours' },
+  ];
 
-  const getValidationSections = (request: EndUserRequest) => {
-    return [
-      {
-        title: 'Informations Personnelles',
-        fields: [
-          { key: 'personal.title', label: 'Civilité', value: request.data?.personal?.title === 'madame' ? 'Madame' : 'Monsieur' },
-          { key: 'personal.firstName', label: 'Prénom', value: request.data?.personal?.firstName || '' },
-          { key: 'personal.lastName', label: 'Nom', value: request.data?.personal?.lastName || '' },
-          { key: 'personal.email', label: 'Email', value: request.data?.personal?.email || '' },
-          { key: 'personal.mobile', label: 'Téléphone', value: request.data?.personal?.mobile || '' },
-        ]
-      },
-      {
-        title: 'Activité',
-        fields: [
-          { key: 'activity.companyName', label: 'Raison sociale', value: request.data?.activity?.companyName || '' },
-          { key: 'activity.legalForm', label: 'Forme juridique', value: request.data?.activity?.legalForm || '' },
-          { key: 'activity.siret', label: 'SIRET', value: request.data?.activity?.siret || '' },
-        ]
-      },
-      {
-        title: 'Documents',
-        fields: Object.entries(request.data?.documents || {}).map(([key, value]) => ({
-          key: `documents.${key}`,
-          label: key.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-          value: value as string,
-        }))
-      }
-    ];
-  };
+  const filteredRequests = requests.filter(request => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      request.name?.toLowerCase().includes(searchLower) ||
+      request.email?.toLowerCase().includes(searchLower) ||
+      request.companyName?.toLowerCase().includes(searchLower)
+    );
+  });
 
   if (selectedRequest) {
     return (
       <div className="space-y-6">
         {/* Header */}
         <div className="bg-white shadow-sm rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => setSelectedRequest(null)}
-                className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
-              >
-                <ChevronLeft className="h-4 w-4 mr-1" />
-                Retour à la liste
-              </button>
-              <h2 className="text-lg font-medium text-gray-900">
-                Demande #{selectedRequest.id} - {selectedRequest.name}
-              </h2>
-            </div>
+          <div className="flex justify-between items-center">
+            <button
+              onClick={() => {
+                setSelectedRequest(null);
+                setValidationStatus({});
+              }}
+              className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Back to list
+            </button>
             <div className="flex items-center space-x-3">
               <button
                 onClick={() => setShowRejectionModal(true)}
-                className="inline-flex items-center px-4 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                className="inline-flex items-center px-4 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50"
               >
                 <X className="h-4 w-4 mr-2" />
-                Rejeter
-              </button>
-              <button
-                onClick={() => setSelectedRequest(null)}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                Annuler
+                Reject
               </button>
               <button
                 onClick={handleApproveRequest}
-                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                disabled={isSubmitting}
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
               >
                 <Check className="h-4 w-4 mr-2" />
-                Valider
+                Approve
               </button>
             </div>
           </div>
@@ -234,7 +184,6 @@ export function RequestReview() {
               sections={getValidationSections(selectedRequest)}
               validationStatus={validationStatus}
               onValidateField={handleValidateField}
-              onEditField={handleEditField}
             />
           </div>
           <div className="lg:col-span-1">
@@ -247,12 +196,12 @@ export function RequestReview() {
           <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4">
             <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Rejeter la demande
+                Reject Request
               </h3>
               <textarea
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
-                placeholder="Motif du rejet..."
+                placeholder="Reason for rejection..."
                 className="w-full h-32 border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500"
               />
               <div className="mt-4 flex justify-end space-x-3">
@@ -260,14 +209,14 @@ export function RequestReview() {
                   onClick={() => setShowRejectionModal(false)}
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
                 >
-                  Annuler
+                  Cancel
                 </button>
                 <button
                   onClick={handleRejectRequest}
-                  disabled={!rejectionReason}
+                  disabled={!rejectionReason || isSubmitting}
                   className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 disabled:opacity-50"
                 >
-                  Confirmer le rejet
+                  Confirm Rejection
                 </button>
               </div>
             </div>
@@ -287,8 +236,8 @@ export function RequestReview() {
           </div>
           <input
             type="text"
-            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-            placeholder="Rechercher..."
+            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+            placeholder="Search requests..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -304,22 +253,14 @@ export function RequestReview() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`
-                  whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2
+                  whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm
                   ${activeTab === tab.id
                     ? 'border-indigo-500 text-indigo-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }
                 `}
               >
-                <span>{tab.label}</span>
-                {requestCounts[tab.id] > 0 && (
-                  <span className={`
-                    inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                    ${activeTab === tab.id ? 'bg-indigo-100 text-indigo-800' : 'bg-gray-100 text-gray-800'}
-                  `}>
-                    {requestCounts[tab.id]}
-                  </span>
-                )}
+                {tab.label}
               </button>
             ))}
           </nav>
@@ -328,54 +269,43 @@ export function RequestReview() {
         {/* Requests List */}
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
           </div>
         ) : error ? (
           <div className="text-center text-red-600 p-4">{error}</div>
         ) : (
           <div className="divide-y divide-gray-200">
-            {filteredRequests.length > 0 ? (
-              filteredRequests.map((request) => (
-                <div
-                  key={request.id}
-                  className="hover:bg-gray-50 cursor-pointer transition-colors duration-150"
-                  onClick={() => setSelectedRequest(request)}
-                >
-                  <div className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-3">
-                          <h3 className="text-sm font-medium text-indigo-600 truncate">
-                            {request.name}
-                          </h3>
-                          <span className="flex-shrink-0 inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
-                            #{request.id}
-                          </span>
-                        </div>
-                        <div className="mt-1 flex items-center space-x-3 text-sm text-gray-500">
-                          <span>{request.email}</span>
-                          {request.companyName && (
-                            <>
-                              <span>•</span>
-                              <span>{request.companyName}</span>
-                            </>
-                          )}
-                        </div>
-                        <div className="mt-2 flex items-center text-sm text-gray-500">
-                          <FileText className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" />
-                          <span>Soumis le {request.submissionDate}</span>
-                        </div>
+            {filteredRequests.map((request) => (
+              <div
+                key={request.id}
+                className="hover:bg-gray-50 cursor-pointer transition-colors duration-150"
+                onClick={() => setSelectedRequest(request)}
+              >
+                <div className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-3">
+                        <h3 className="text-sm font-medium text-indigo-600 truncate">
+                          {request.name}
+                        </h3>
+                        <span className="flex-shrink-0 inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
+                          #{request.id}
+                        </span>
                       </div>
-                      <div className="ml-5 flex-shrink-0">
-                        <ChevronLeft className="h-5 w-5 text-gray-400 transform rotate-180" />
+                      <div className="mt-1 flex items-center space-x-3 text-sm text-gray-500">
+                        <span>{request.email}</span>
+                        <span>•</span>
+                        <span>{request.companyName}</span>
                       </div>
                     </div>
+                    <ChevronLeft className="h-5 w-5 text-gray-400 transform rotate-180" />
                   </div>
                 </div>
-              ))
-            ) : (
-              <div className="p-6 text-center text-gray-500">
-                Aucune demande trouvée pour ce statut
+              </div>
+            ))}
+            {filteredRequests.length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                No requests found
               </div>
             )}
           </div>
@@ -383,4 +313,36 @@ export function RequestReview() {
       </div>
     </div>
   );
+}
+
+function getValidationSections(request: EndUserRequest) {
+  return [
+    {
+      title: 'Personal Information',
+      fields: [
+        { key: 'personal.title', label: 'Title', value: request.data?.personal?.title === 'madame' ? 'Madame' : 'Monsieur' },
+        { key: 'personal.firstName', label: 'First Name', value: request.data?.personal?.firstName },
+        { key: 'personal.lastName', label: 'Last Name', value: request.data?.personal?.lastName },
+        { key: 'personal.email', label: 'Email', value: request.data?.personal?.email },
+        { key: 'personal.mobile', label: 'Phone', value: request.data?.personal?.mobile },
+      ]
+    },
+    {
+      title: 'Business Information',
+      fields: [
+        { key: 'business.legalForm', label: 'Legal Form', value: request.data?.business?.legalForm },
+        { key: 'business.siret', label: 'SIRET', value: request.data?.business?.siret },
+        { key: 'business.companyName', label: 'Company Name', value: request.data?.business?.companyName },
+        { key: 'business.industryCode', label: 'Industry Code', value: request.data?.business?.industryCode },
+      ]
+    },
+    {
+      title: 'Documents',
+      fields: Object.entries(request.data?.documents || {}).map(([key, value]) => ({
+        key: `documents.${key}`,
+        label: key.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        value: Array.isArray(value) ? `${value.length} file(s) uploaded` : 'No files',
+      }))
+    }
+  ];
 }

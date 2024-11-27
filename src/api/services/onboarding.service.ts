@@ -6,7 +6,8 @@ import {
   BusinessInfo, 
   Shareholder, 
   Documents,
-  RequestStatus
+  RequestStatus,
+  ValidationFeedback
 } from '../../types/onboarding';
 import { APP_CONFIG } from '../../config/app.config';
 
@@ -72,6 +73,12 @@ class OnboardingService extends BaseService {
   async getRequestHistory(id: string): Promise<OnboardingRequest['history']> {
     return this.get<OnboardingRequest['history']>(
       `${API_ENDPOINTS.ONBOARDING.REQUESTS}/${id}/history`
+    );
+  }
+
+  async getValidationFeedback(requestId: string): Promise<ValidationFeedback[]> {
+    return this.get<ValidationFeedback[]>(
+      `${API_ENDPOINTS.ONBOARDING.REQUESTS}/${requestId}/validation`
     );
   }
 }

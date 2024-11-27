@@ -7,6 +7,114 @@ const Agency = require('../models/Agency');
 const { uploadFile } = require('../utils/fileUpload');
 const { validateRequest } = require('../utils/requestValidation');
 const { sendNotification } = require('../utils/notifications');
+const sequelize = require('../config/database');
+
+const ValidationFeedback = require('../models/ValidationFeedback');
+
+exports.addValidationFeedback = async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { fieldId, status, comment } = req.body;
+
+    // Validate request exists and user has access
+    const request = await OnboardingRequest.findOne({
+      where: { 
+        id: id,
+        bankId: req.user.bankId
+      }
+    });
+
+    if (!request) {
+      return res.status(404).json({ message: 'Request not found' });
+    }
+
+    // Create or update validation feedback
+    const [feedback, created] = await ValidationFeedback.findOrCreate({
+      where: { 
+        requestId,
+        fieldId
+      },
+      defaults: {
+        status,
+        comment,
+        validatedBy: req.user.id,
+        validatedAt: new Date()
+      }
+    });
+
+    if (!created) {
+      await feedback.update({
+        status,
+        comment,
+        validatedBy: req.user.id,
+        validatedAt: new Date()
+      });
+    }
+
+    // Get updated feedback with validator info
+    const updatedFeedback = await ValidationFeedback.findOne({
+      where: { id: feedback.id },
+      include: [{
+        model: User,
+        as: 'validator',
+        attributes: ['firstName', 'lastName']
+      }]
+    });
+
+    res.json(updatedFeedback);
+  } catch (error) {
+    console.error('Error adding validation feedback:', error);
+    res.status(500).json({ message: 'Failed to add validation feedback' });
+  }
+};
+
+// exports.getValidationFeedback = async (req, res) => {
+//   try {
+//     const { requestId } = req.params;
+
+//     // Check if the user has access to this request
+//     const request = await OnboardingRequest.findOne({
+//       where: { 
+//         id: requestId,
+//         [req.user.role === 'agent_staff' ? 'agentId' : 'bankId']: 
+//           req.user.role === 'agent_staff' ? req.user.id : req.user.bankId
+//       }
+//     });
+
+//     if (!request) {
+//       return res.status(404).json({ message: 'Request not found' });
+//     }
+
+//     const feedback = await ValidationFeedback.findAll({
+//       where: { requestId },
+//       include: [{
+//         model: User,
+//         as: 'validator',
+//         attributes: ['firstName', 'lastName']
+//       }],
+//       order: [['validatedAt', 'DESC']]
+//     });
+
+//     // Format the response based on user role
+//     const formattedFeedback = feedback.map(item => ({
+//       id: item.id,
+//       fieldId: item.fieldId,
+//       status: item.status,
+//       comment: item.comment,
+//       validatedBy: req.user.role === 'agent_staff'
+//         ? 'Bank Staff'
+//         : `${item.validator.firstName} ${item.validator.lastName}`,
+//       validatedAt: item.validatedAt
+//     }));
+
+//     res.json(formattedFeedback);
+//   } catch (error) {
+//     console.error('Error fetching validation feedback:', error);
+//     res.status(500).json({ message: 'Failed to fetch validation feedback' });
+//   }
+// };
+
+
 
 exports.getRequests = async (req, res) => {
   try {
@@ -292,61 +400,291 @@ exports.submitRequest = async (req, res) => {
   }
 };
 
-exports.addComment = async (req, res) => {
-  try {
-    const { comment } = req.body;
-    const request = await OnboardingRequest.findByPk(req.params.id);
+// exports.addValidationFeedback = async (req, res) => {
+//   try {
+//     const { requestId } = req.params;
+//     const { fieldId, status, comment } = req.body;
 
+//     const request = await OnboardingRequest.findByPk(requestId);
+//     if (!request) {
+//       return res.status(404).json({ message: 'Request not found' });
+//     }
+
+//     const feedback = await ValidationFeedback.create({
+//       requestId,
+//       fieldId,
+//       status,
+//       comment,
+//       validatedBy: req.user.id,
+//       validatedAt: new Date()
+//     });
+
+//     // Send notification to agent
+//     await sendNotification('validation_feedback', {
+//       requestId,
+//       fieldId,
+//       status,
+//       validatedBy: req.user.id
+//     });
+
+//     res.json(feedback);
+//   } catch (error) {
+//     console.error('Error adding validation feedback:', error);
+//     res.status(500).json({ message: 'Failed to add validation feedback' });
+//   }
+// };
+
+exports.addComment = async (req, res) => {
+  const transaction = await sequelize.transaction();
+
+  try {
+    const { id: requestId } = req.params;
+    const { fieldId, status, message } = req.body;
+
+    // Find request with proper associations
+    const request = await OnboardingRequest.findOne({
+      where: { id: requestId },
+      include: [
+        {
+          model: RequestStatus,
+          as: 'status'
+        }
+      ],
+      transaction
+    });
+
+    if (!request) {
+      await transaction.rollback();
+      return res.status(404).json({ message: 'Request not found' });
+    }
+
+    // Create validation feedback
+    const feedback = await ValidationFeedback.create({
+      requestId,
+      fieldId,
+      status,
+      comment: message || null,
+      validatedBy: req.user.id,
+      validatedAt: new Date()
+    }, { transaction });
+
+    // Create history entry
+    await RequestStatusHistory.create({
+      requestId,
+      statusId: request.statusId,
+      userId: req.user.id,
+      comment: message || `Field ${fieldId} marked as ${status}`,
+      metadata: { fieldId, status, type: 'validation' }
+    }, { transaction });
+
+    // Fetch the created feedback with validator info
+    const populatedFeedback = await ValidationFeedback.findOne({
+      where: { id: feedback.id },
+      include: [{
+        model: User,
+        as: 'validator',
+        attributes: ['firstName', 'lastName']
+      }],
+      transaction
+    });
+
+    await transaction.commit();
+
+    res.json(populatedFeedback);
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Error adding validation feedback:', error);
+    res.status(500).json({ message: 'Failed to add validation feedback' });
+  }
+};
+
+exports.getValidationFeedback = async (req, res) => {
+
+  console.log('Request Params:', req.params);
+
+  try {
+    // const { id } = req.params.requestId;
+
+    // if (!id) {
+    //   return res.status(400).json({ message: 'Request ID is required' });
+    // }
+
+    // First verify the request exists
+    const request = await OnboardingRequest.findByPk(req.params.requestId);
     if (!request) {
       return res.status(404).json({ message: 'Request not found' });
     }
 
-    await RequestStatusHistory.create({
-      requestId: request.id,
-      statusId: request.statusId,
-      userId: req.user.id,
-      comment
+    // Get validation feedback with validator details
+    const feedback = await ValidationFeedback.findAll({
+      where: { requestId: req.params.requestId },
+      include: [{
+        model: User,
+        as: 'validator',
+        attributes: ['firstName', 'lastName', 'email']
+      }],
+      order: [['validatedAt', 'DESC']]
     });
 
-    res.json({ message: 'Comment added successfully' });
+    // Format the response
+    const formattedFeedback = feedback.map(item => ({
+      id: item.id,
+      fieldId: item.fieldId,
+      status: item.status,
+      comment: item.comment,
+      validatedBy: `${item.validator.firstName} ${item.validator.lastName}`,
+      validatedAt: item.validatedAt
+    }));
+
+    res.json(formattedFeedback);
   } catch (error) {
-    console.error('Error adding comment:', error);
-    res.status(500).json({ message: 'Failed to add comment' });
+    console.error('Error fetching validation feedback:', error);
+    res.status(500).json({ message: 'Failed to fetch validation feedback' });
+  }
+};
+
+exports.addValidationFeedback = async (req, res) => {
+  const transaction = await sequelize.transaction();
+
+  console.log('Request Params:', req.params);
+
+  try {
+    const { id } = req.params;
+    const { feedback } = req.body;
+
+    if (!id) {
+      await transaction.rollback();
+      return res.status(400).json({ message: 'Request ID is required' });
+    }
+
+    if (!Array.isArray(feedback)) {
+      await transaction.rollback();
+      return res.status(400).json({ message: 'Feedback must be an array' });
+    }
+
+    // Verify request exists
+    const request = await OnboardingRequest.findByPk(id);
+    if (!request) {
+      await transaction.rollback();
+      return res.status(404).json({ message: 'Request not found' });
+    }
+
+    // Delete existing feedback for this request
+    await ValidationFeedback.destroy({
+      where: { requestId: id },
+      transaction
+    });
+
+    // Create new feedback entries
+    const validationFeedback = await Promise.all(
+      feedback.map(item => 
+        ValidationFeedback.create({
+          requestId: id,
+          fieldId: item.fieldId,
+          status: item.status,
+          comment: item.comment,
+          validatedBy: req.user.id,
+          validatedAt: new Date()
+        }, { transaction })
+      )
+    );
+
+    await transaction.commit();
+
+    // Fetch the created feedback with validator details
+    const createdFeedback = await ValidationFeedback.findAll({
+      where: { requestId: id },
+      include: [{
+        model: User,
+        as: 'validator',
+        attributes: ['firstName', 'lastName', 'email']
+      }]
+    });
+
+    res.status(201).json(createdFeedback);
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Error adding validation feedback:', error);
+    res.status(500).json({ message: 'Failed to add validation feedback' });
   }
 };
 
 exports.updateRequestStatus = async (req, res) => {
+  const transaction = await sequelize.transaction();
+
   try {
-    const { status, comment } = req.body;
-    const request = await OnboardingRequest.findByPk(req.params.id);
+    const { status, comment, validationFeedback } = req.body;
+    const request = await OnboardingRequest.findByPk(req.params.id, { transaction });
 
     if (!request) {
+      await transaction.rollback();
       return res.status(404).json({ message: 'Request not found' });
     }
 
     const newStatus = await RequestStatus.findOne({
-      where: { statusCode: status }
+      where: { statusCode: status },
+      transaction
     });
 
     if (!newStatus) {
+      await transaction.rollback();
       return res.status(400).json({ message: 'Invalid status' });
     }
 
+    // Update request status
     await request.update({
       statusId: newStatus.id,
       lastModifiedBy: req.user.id
-    });
+    }, { transaction });
 
+    // Create status history entry
     await RequestStatusHistory.create({
       requestId: request.id,
       statusId: newStatus.id,
       userId: req.user.id,
-      comment
+      comment,
+      metadata: { type: 'status_change' }
+    }, { transaction });
+
+    // Store validation feedback if provided
+    if (validationFeedback && Array.isArray(validationFeedback)) {
+      await Promise.all(validationFeedback.map(feedback =>
+        ValidationFeedback.create({
+          requestId: request.id,
+          ...feedback,
+          validatedBy: req.user.id,
+          validatedAt: new Date()
+        }, { transaction })
+      ));
+    }
+
+    await transaction.commit();
+
+    // Fetch updated request with associations
+    const updatedRequest = await OnboardingRequest.findByPk(request.id, {
+      include: [
+        {
+          model: RequestStatus,
+          as: 'status'
+        },
+        {
+          model: ValidationFeedback,
+          as: 'validationFeedback',
+          include: [{
+            model: User,
+            as: 'validator',
+            attributes: ['firstName', 'lastName']
+          }]
+        }
+      ]
     });
 
-    res.json(request);
+    res.json(updatedRequest);
   } catch (error) {
+    await transaction.rollback();
     console.error('Error updating request status:', error);
     res.status(500).json({ message: 'Failed to update request status' });
   }
 };
+
+
