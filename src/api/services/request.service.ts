@@ -4,11 +4,22 @@ import { mockRequests } from '../mock/mockData';
 import { APP_CONFIG } from '../../config/app.config';
 import { API_ENDPOINTS } from '../config';
 import { RequestStatus,ValidationFeedback } from '../../types/onboarding';
+// export interface RequestStatusUpdate {
+//   status: number;
+//   comment?: string;
+//   fieldUpdates?: Record<string, any>;
+// }
+
 export interface RequestStatusUpdate {
   status: number;
   comment?: string;
-  fieldUpdates?: Record<string, any>;
+  validationFeedback?: Array<{
+    fieldId: string;
+    status: 'ok' | 'error' | 'warning';
+    message?: string;
+  }>;
 }
+
 
 export interface RequestComment {
   fieldId?: string;
@@ -112,7 +123,6 @@ class RequestService extends BaseService {
   }
 
   async getValidationFeedback(id: string): Promise<ValidationFeedback[]> {
-    alert(id);
     // if (!id) {
     //   throw new Error('Request ID is required');
     // }

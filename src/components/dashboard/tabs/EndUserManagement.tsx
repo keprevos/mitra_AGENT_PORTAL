@@ -26,10 +26,10 @@ export function EndUserManagement() {
     }
   }, [selectedRequest]);
 
-  const fetchValidationFeedback = async (id: string) => {
+  const fetchValidationFeedback = async (requestId: string) => {
     try {
       setIsLoading(true);
-      const feedback = await requestService.getValidationFeedback(id);
+      const feedback = await requestService.getValidationFeedback(requestId);
       setValidationFeedback(feedback);
     } catch (error) {
       console.error('Failed to fetch validation feedback:', error);

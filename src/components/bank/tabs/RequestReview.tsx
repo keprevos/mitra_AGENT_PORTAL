@@ -316,6 +316,8 @@ export function RequestReview() {
 }
 
 function getValidationSections(request: EndUserRequest) {
+  console.log("request-------->req",request);
+  
   return [
     {
       title: 'Personal Information',
@@ -325,6 +327,15 @@ function getValidationSections(request: EndUserRequest) {
         { key: 'personal.lastName', label: 'Last Name', value: request.data?.personal?.lastName },
         { key: 'personal.email', label: 'Email', value: request.data?.personal?.email },
         { key: 'personal.mobile', label: 'Phone', value: request.data?.personal?.mobile },
+        { key: 'personal.address', label: 'Address', value: request.data?.personal?.address ? 
+          `${request.data.personal.address.street}, ${request.data.personal.address.city}, ${request.data.personal.address.postalCode}, ${request.data.personal.address.country}` : ''
+        },
+        { key: 'personal.birthDate', label: 'Birth Date', value: request.data?.personal?.birthDate },
+        { key: 'personal.birthPlace', label: 'Birth Place', value: request.data?.personal?.birthPlace },
+        { key: 'personal.birthCountry', label: 'Birth Country', value: request.data?.personal?.birthCountry },
+        { key: 'personal.nationality', label: 'Nationality', value: request.data?.personal?.nationality },
+        { key: 'personal.taxResidence', label: 'Tax Residence', value: request.data?.personal?.taxResidence },
+        { key: 'personal.isUsCitizen', label: 'US Citizen', value: request.data?.personal?.isUsCitizen ? 'Yes' : 'No' }
       ]
     },
     {
@@ -334,7 +345,31 @@ function getValidationSections(request: EndUserRequest) {
         { key: 'business.siret', label: 'SIRET', value: request.data?.business?.siret },
         { key: 'business.companyName', label: 'Company Name', value: request.data?.business?.companyName },
         { key: 'business.industryCode', label: 'Industry Code', value: request.data?.business?.industryCode },
+        { key: 'business.brandName', label: 'Brand Name', value: request.data?.business?.brandName },
+        { key: 'business.address', label: 'Business Address', value: request.data?.business?.address ? 
+          `${request.data.business.address.street}, ${request.data.business.address.city}, ${request.data.business.address.postalCode}, ${request.data.business.address.country}` : ''
+        },
+        { key: 'business.activityDescription', label: 'Activity Description', value: request.data?.business?.activityDescription },
+        { key: 'business.clientLocation', label: 'Client Location', value: request.data?.business?.clientLocation },
+        { key: 'business.clientTypes', label: 'Client Types', value: request.data?.business?.clientTypes },
+        { key: 'business.lastTurnover', label: 'Last Turnover', value: request.data?.business?.lastTurnover }
       ]
+    },
+    {
+      title: 'Shareholders',
+      fields: request.data?.shareholders?.map((shareholder, index) => ({
+        key: `shareholders.${index}`,
+        label: `Shareholder ${index + 1}`,
+        value: shareholder.type === 'individual' ?
+          `${shareholder.firstName} ${shareholder.lastName} (${shareholder.ownershipPercentage}%)` :
+          `${shareholder.companyName} (${shareholder.ownershipPercentage}%)`,
+        details: shareholder.type === 'individual' ? {
+          birthDate: shareholder.birthDate,
+          nationality: shareholder.nationality
+        } : {
+          registrationNumber: shareholder.registrationNumber
+        }
+      }))
     },
     {
       title: 'Documents',
@@ -342,6 +377,7 @@ function getValidationSections(request: EndUserRequest) {
         key: `documents.${key}`,
         label: key.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
         value: Array.isArray(value) ? `${value.length} file(s) uploaded` : 'No files',
+        files: value
       }))
     }
   ];

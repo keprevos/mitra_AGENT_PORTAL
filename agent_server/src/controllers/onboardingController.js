@@ -263,7 +263,7 @@ exports.createRequest = async (req, res) => {
 exports.updateRequest = async (req, res) => {
   try {
     const { id } = req.params;
-    const { personalInfo, businessInfo, shareholders, documents } = req.body.data;
+    const { personalInfo, businessInfo, shareholders, documents } = req.body;
 
     // Fetch the existing request
     const request = await OnboardingRequest.findOne({
@@ -543,6 +543,8 @@ exports.getValidationFeedback = async (req, res) => {
   }
 };
 
+
+
 exports.addValidationFeedback = async (req, res) => {
   const transaction = await sequelize.transaction();
 
@@ -686,5 +688,39 @@ exports.updateRequestStatus = async (req, res) => {
     res.status(500).json({ message: 'Failed to update request status' });
   }
 };
+
+// exports.getValidationFeedback = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+
+//     if (!id) {
+//       return res.status(400).json({ message: 'Request ID is required' });
+//     }
+
+//     const feedback = await ValidationFeedback.findAll({
+//       where: { requestId: id },
+//       include: [{
+//         model: User,
+//         as: 'validator',
+//         attributes: ['firstName', 'lastName']
+//       }],
+//       order: [['validatedAt', 'DESC']]
+//     });
+
+//     const formattedFeedback = feedback.map(item => ({
+//       fieldId: item.fieldId,
+//       status: item.status,
+//       comment: item.comment,
+//       validatedBy: `${item.validator.firstName} ${item.validator.lastName}`,
+//       validatedAt: item.validatedAt
+//     }));
+
+//     res.json(formattedFeedback);
+//   } catch (error) {
+//     console.error('Error fetching validation feedback:', error);
+//     res.status(500).json({ message: 'Failed to fetch validation feedback' });
+//   }
+// };
+
 
 

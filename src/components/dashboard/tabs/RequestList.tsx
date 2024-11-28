@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Edit2, Eye, Clock, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { EndUserRequest } from '../../../types/auth';
+import { RequestStatus } from '../../../types/onboarding';
 import { requestService } from '../../../api/services/request.service';
 import toast from 'react-hot-toast';
 
@@ -10,17 +12,27 @@ interface RequestListProps {
 }
 
 const STATUS_COLORS = {
-  'Pending Review': 'bg-yellow-100 text-yellow-800',
-  'Approved': 'bg-green-100 text-green-800',
-  'Rejected': 'bg-red-100 text-red-800',
-  'Information Required': 'bg-orange-100 text-orange-800'
+  [RequestStatus.DRAFT]: 'bg-gray-100 text-gray-800',
+  [RequestStatus.CLIENT_CORRECTED]: 'bg-yellow-100 text-yellow-800',
+  [RequestStatus.CTO_REVIEW]: 'bg-blue-100 text-blue-800',
+  [RequestStatus.REJECTED_N0]: 'bg-red-100 text-red-800',
+  [RequestStatus.SUBMITTED]: 'bg-green-100 text-green-800'
 };
 
 const STATUS_ICONS = {
-  'Pending Review': Clock,
-  'Approved': CheckCircle,
-  'Rejected': XCircle,
-  'Information Required': AlertTriangle
+  [RequestStatus.DRAFT]: Clock,
+  [RequestStatus.CLIENT_CORRECTED]: AlertTriangle,
+  [RequestStatus.CTO_REVIEW]: Eye,
+  [RequestStatus.REJECTED_N0]: XCircle,
+  [RequestStatus.SUBMITTED]: CheckCircle
+};
+
+const STATUS_LABELS = {
+  [RequestStatus.DRAFT]: 'Analyse de la demande',
+  [RequestStatus.CLIENT_CORRECTED]: 'En attente retour client',
+  [RequestStatus.CTO_REVIEW]: "En attente d'avis CTO",
+  [RequestStatus.REJECTED_N0]: 'Demandes refusées',
+  [RequestStatus.SUBMITTED]: 'Demande en cours'
 };
 
 export function RequestList({ onEdit, onView }: RequestListProps) {
@@ -28,16 +40,18 @@ export function RequestList({ onEdit, onView }: RequestListProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<RequestStatus | 'all'>('all');
 
   useEffect(() => {
     fetchRequests();
-  }, []);
+  }, [statusFilter]);
 
   const fetchRequests = async () => {
     try {
       setIsLoading(true);
-      const data = await requestService.getRequests();
+      const data = await requestService.getRequests(
+        statusFilter === 'all' ? undefined : statusFilter
+      );
       setRequests(data);
     } catch (err) {
       setError('Failed to fetch requests');
@@ -54,9 +68,7 @@ export function RequestList({ onEdit, onView }: RequestListProps) {
       request.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       request.companyName?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesStatus = statusFilter === 'all' || request.status === statusFilter;
-    
-    return matchesSearch && matchesStatus;
+    return matchesSearch;
   });
 
   if (isLoading) {
@@ -94,13 +106,12 @@ export function RequestList({ onEdit, onView }: RequestListProps) {
         <select
           className="block w-full sm:w-auto pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => setStatusFilter(e.target.value as RequestStatus | 'all')}
         >
           <option value="all">All Status</option>
-          <option value="Pending Review">Pending Review</option>
-          <option value="Approved">Approved</option>
-          <option value="Rejected">Rejected</option>
-          <option value="Information Required">Information Required</option>
+          {Object.entries(STATUS_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
         </select>
       </div>
 
@@ -109,7 +120,10 @@ export function RequestList({ onEdit, onView }: RequestListProps) {
         <div className="divide-y divide-gray-200">
           {filteredRequests.length > 0 ? (
             filteredRequests.map((request) => {
-              const StatusIcon = STATUS_ICONS[request.status] || Clock;
+              const StatusIcon = STATUS_ICONS[request.status as RequestStatus] || Clock;
+              const statusColor = STATUS_COLORS[request.status as RequestStatus] || 'bg-gray-100 text-gray-800';
+              const statusLabel = STATUS_LABELS[request.status as RequestStatus] || request.status;
+
               return (
                 <div key={request.id} className="p-6 hover:bg-gray-50">
                   <div className="flex items-center justify-between">
@@ -121,9 +135,9 @@ export function RequestList({ onEdit, onView }: RequestListProps) {
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                           #{request.id}
                         </span>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[request.status]}`}>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColor}`}>
                           <StatusIcon className="h-4 w-4 mr-1" />
-                          {request.status}
+                          {statusLabel}
                         </span>
                       </div>
                       <div className="mt-1 flex items-center space-x-2 text-sm text-gray-500">
@@ -148,7 +162,6 @@ export function RequestList({ onEdit, onView }: RequestListProps) {
                         <Eye className="h-4 w-4 mr-2" />
                         View
                       </button>
-                      {request.status !== 'Approved' && request.status !== 'Rejected' && (
                         <button
                           onClick={() => onEdit(request)}
                           className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -156,7 +169,6 @@ export function RequestList({ onEdit, onView }: RequestListProps) {
                           <Edit2 className="h-4 w-4 mr-2" />
                           Edit
                         </button>
-                      )}
                     </div>
                   </div>
                 </div>
